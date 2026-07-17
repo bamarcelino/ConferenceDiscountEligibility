@@ -99,8 +99,8 @@ $tests['15 scheduled-conference isolation'] = function () use ($contains): void 
         $contains('src/Panel/ScheduledConference/Resources/' . $file, "where('scheduled_conference_id'");
     }
 };
-$tests['16 presenter-category payment coverage'] = function () use ($contains): void {
-    $contains('src/Managers/DiscountAwarePaymentManager.php', 'TYPE_PARTICIPANT_FEE');
+$tests['16 participant and presenter-category payment coverage'] = function () use ($contains): void {
+    $contains('src/Support/DiscountablePaymentTypes.php', 'TYPE_PARTICIPANT_FEE');
     $contains('RESEARCH.md', 'Presenter registration discrepancy');
 };
 $tests['17 participant registration integration'] = function () use ($contains): void {
@@ -335,6 +335,41 @@ $tests['60 exact submission-author email is accepted as concrete authorship evid
 $tests['61 global Author role remains insufficient without submission evidence'] = function () use ($notContains): void {
     $notContains('src/Services/AuthorIdentityVerifier.php', 'hasRole(');
     $notContains('src/Services/AuthorIdentityVerifier.php', "whereHas('roles'");
+};
+
+
+$tests['62 submission payments are discountable at creation'] = function () use ($contains, $notContains): void {
+    $contains('src/Support/DiscountablePaymentTypes.php', 'TYPE_SUBMISSION_FEE');
+    $contains('src/Managers/DiscountAwarePaymentManager.php', 'DiscountablePaymentTypes::contains');
+    $notContains('src/Managers/DiscountAwarePaymentManager.php', '$type !== self::TYPE_PARTICIPANT_FEE');
+};
+$tests['63 recalculation includes participant and submission payments'] = function () use ($contains, $notContains): void {
+    $contains('src/Services/RecalculationCoordinator.php', "whereIn('type', DiscountablePaymentTypes::all())");
+    $contains('src/Support/PaymentSafety.php', 'DiscountablePaymentTypes::contains');
+    $notContains('src/Support/PaymentSafety.php', 'TYPE_PARTICIPANT_FEE ||');
+};
+$tests['64 all supported payment types preserve the same server-side discount calculation'] = function () use ($contains): void {
+    $contains('src/Managers/DiscountAwarePaymentManager.php', '$this->discounts->prepare(');
+    $contains('src/Managers/DiscountAwarePaymentManager.php', 'amount: Money::decimalFloat($prepared->calculation->finalTotalMinor');
+    $contains('src/Managers/DiscountAwarePaymentManager.php', '$this->snapshots->record($payment, $prepared)');
+};
+$tests['65 payment report identifies participant versus submission'] = function () use ($contains): void {
+    $contains('src/Panel/ScheduledConference/Resources/DiscountPaymentReportResource.php', 'paymentTypeLabel');
+    $contains('src/Panel/ScheduledConference/Resources/DiscountPaymentReportResource.php', 'TYPE_SUBMISSION_FEE');
+    $contains('src/Panel/ScheduledConference/Resources/DiscountPaymentReportResource/Pages/ListDiscountPayments.php', "'payment_type'");
+};
+$tests['66 snapshot preserves the native payment type'] = function () use ($contains): void {
+    $contains('src/Services/SnapshotService.php', '\'payment_type\' => (int) $payment->type');
+};
+$tests['67 all locales describe participant and submission recalculation'] = function () use ($contains): void {
+    $contains('lang/en/messages.php', 'participant and submission payments');
+    $contains('lang/es/messages.php', 'participante y de envío');
+    $contains('lang/pt-BR/messages.php', 'participante e de submissão');
+};
+$tests['68 version 1.1.0 documents the all-payment scope'] = function () use ($contains): void {
+    $contains('index.yaml', 'version: "1.1.0"');
+    $contains('CHANGELOG.md', 'Participant and Submission Payments');
+    $contains('ARCHITECTURE.md', 'TYPE_SUBMISSION_FEE');
 };
 
 $results = [];

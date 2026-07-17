@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace ConferenceDiscountEligibility\Services;
 
-use App\Managers\PaymentManager;
 use App\Models\Payment;
 use App\Models\User;
 use ConferenceDiscountEligibility\Data\DomainIdentityDecision;
@@ -12,6 +11,7 @@ use ConferenceDiscountEligibility\Enums\EligibilityType;
 use ConferenceDiscountEligibility\Models\ConferenceDiscountDomain;
 use ConferenceDiscountEligibility\Models\ConferenceDiscountEntitlement;
 use ConferenceDiscountEligibility\Models\ConferenceDiscountPaymentSnapshot;
+use ConferenceDiscountEligibility\Support\DiscountablePaymentTypes;
 use ConferenceDiscountEligibility\Support\DomainMatcher;
 use ConferenceDiscountEligibility\Support\EmailNormalizer;
 use ConferenceDiscountEligibility\Support\PaymentSafety;
@@ -84,7 +84,7 @@ final class RecalculationCoordinator
             if ($rule->user_id) {
                 $paymentIds = Payment::query()
                     ->where('scheduled_conference_id', $scheduledConferenceId)
-                    ->where('type', PaymentManager::TYPE_PARTICIPANT_FEE)
+                    ->whereIn('type', DiscountablePaymentTypes::all())
                     ->where('user_id', $rule->user_id)
                     ->pluck('id')
                     ->map(fn ($id): int => (int) $id)
@@ -105,7 +105,7 @@ final class RecalculationCoordinator
 
             Payment::query()
                 ->where('scheduled_conference_id', $scheduledConferenceId)
-                ->where('type', PaymentManager::TYPE_PARTICIPANT_FEE)
+                ->whereIn('type', DiscountablePaymentTypes::all())
                 ->with('user')
                 ->chunkById(200, function ($payments) use (
                     $rule,

@@ -40,6 +40,7 @@ final class SnapshotService
             'evaluated_rules' => $prepared->selection->evaluatedAsArray(),
             'history' => $history,
             'origin' => $origin,
+            'payment_type' => (int) $payment->type,
         ];
         $attributes = [
             'scheduled_conference_id' => $payment->scheduled_conference_id,

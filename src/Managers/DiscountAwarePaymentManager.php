@@ -12,6 +12,7 @@ use Carbon\Carbon;
 use ConferenceDiscountEligibility\Services\AuditLogger;
 use ConferenceDiscountEligibility\Services\PaymentDiscountService;
 use ConferenceDiscountEligibility\Services\SnapshotService;
+use ConferenceDiscountEligibility\Support\DiscountablePaymentTypes;
 use ConferenceDiscountEligibility\Support\Money;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -38,7 +39,7 @@ final class DiscountAwarePaymentManager extends PaymentManager
         array $additionalItems = [],
         ?float $baseAmount = null,
     ) {
-        if ($type !== self::TYPE_PARTICIPANT_FEE) {
+        if (! DiscountablePaymentTypes::contains($type)) {
             return parent::queue($model, $paymentFee, $user, $type, $title, $requestUrl, $description, $amount, $currency, $expiredAt, $additionalItems, $baseAmount);
         }
 

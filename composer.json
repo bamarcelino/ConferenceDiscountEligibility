@@ -1,6 +1,6 @@
 {
     "name": "scientia-international/conference-discount-eligibility",
-    "description": "Automatic eligibility-based registration discounts for Leconfe 1.4.6.",
+    "description": "Automatic eligibility-based participant and submission discounts for Leconfe 1.4.6.",
     "type": "leconfe-plugin",
     "license": "proprietary",
     "require": {

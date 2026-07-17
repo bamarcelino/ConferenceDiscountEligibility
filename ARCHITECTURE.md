@@ -1,4 +1,4 @@
-# ARCHITECTURE — Conference Discount Eligibility 1.0.3
+# ARCHITECTURE — Conference Discount Eligibility 1.1.0
 
 ## Architectural goals
 
@@ -12,7 +12,7 @@
 ## Component overview
 
 ```text
-ParticipantRegistration
+ParticipantRegistration / Submission payment creation
         |
         v
 PaymentManager::get()
@@ -45,11 +45,11 @@ PaymentDetail / Invoice / Receipt / PaypalPayment
 
 `PaymentManager::get()` resolves from the Laravel container. During plugin boot the plugin binds the core class to `DiscountAwarePaymentManager`, which exactly preserves the target method signature and delegates to `parent::queue()`.
 
-Only `TYPE_PARTICIPANT_FEE` is eligible. `TYPE_SUBMISSION_FEE` is returned unchanged.
+Both native Leconfe 1.4.6 payment types are eligible: `TYPE_PARTICIPANT_FEE` and `TYPE_SUBMISSION_FEE`. Unknown future payment types are delegated unchanged to the core manager.
 
 ### Metadata observer
 
-The core administrative edit path writes Payment fields, then `additional_items`, then `base_amount`. The observer reacts only to a saved `base_amount` metadata record belonging to an unpaid participant Payment. A static recursion guard suppresses plugin-originated metadata writes.
+The core administrative edit path writes Payment fields, then `additional_items`, then `base_amount`. The observer reacts only to a saved `base_amount` metadata record belonging to an unpaid supported Payment. A static recursion guard suppresses plugin-originated metadata writes.
 
 ### Filament hooks
 
@@ -73,7 +73,7 @@ Stores normalized domain, subdomain behavior, validity, status, optional usage l
 
 ### `conference_discount_payment_snapshots`
 
-One row per Payment. Integer minor-unit columns preserve original base, discount, final base, add-on amount, and final total. JSON metadata preserves evaluated candidates, selected add-on eligibility, and explicit recalculation history.
+One row per Payment. Integer minor-unit columns preserve original base, discount, final base, add-on amount, and final total. JSON metadata preserves the native payment type, evaluated candidates, selected add-on eligibility, and explicit recalculation history.
 
 ### `conference_discount_import_batches`
 
@@ -112,7 +112,7 @@ Rules are non-cumulative.
 
 ## Confirmed-author identity evidence
 
-The author fallback is intentionally narrower than the Leconfe account role:
+The author fallback is intentionally narrower than the Leconfe account role and can validate domain eligibility for either participant or submission payments:
 
 - the exact `users.id` must own a `Submission` in the same `scheduled_conference_id`; or
 - the exact user must be a `SubmissionParticipant` for a submission in that scheduled conference, and that participant's related role must be `UserRole::Author`.
@@ -153,7 +153,7 @@ Usage limits are consumed only when a new Payment receives a new snapshot. Updat
 The recalculator locks the Payment row and refuses when:
 
 - `paid_at` is set;
-- type is not participant fee;
+- type is neither participant fee nor submission fee;
 - `payment_method` is already set;
 - PayPal completion metadata exists.
 

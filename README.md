@@ -1,6 +1,6 @@
 # Conference Discount Eligibility
 
-`Conference Discount Eligibility` is a scheduled-conference-scoped plugin for **Leconfe 1.4.6**. It applies server-side discounts to eligible participant-fee registrations before the native `Payment` is created. The official **Paypal Payment 1.1.0** plugin remains responsible for checkout, PayPal return/cancellation handling, transaction metadata, `paid_at`, receipts, and the native payment lifecycle.
+`Conference Discount Eligibility` is a scheduled-conference-scoped plugin for **Leconfe 1.4.6**. It applies server-side discounts to eligible participant-registration and submission fees before the native `Payment` is created. The official **Paypal Payment 1.1.0** plugin remains responsible for checkout, PayPal return/cancellation handling, transaction metadata, `paid_at`, receipts, and the native payment lifecycle.
 
 ## Included capabilities
 
@@ -14,7 +14,7 @@
 - CSV preview, dry run, validation, duplicate strategy, import report, and safe exports.
 - Highest-percentage non-cumulative selection.
 - Integer minor-unit calculation and basis-point percentages.
-- Base-fee-only default, with optional explicitly eligible add-ons.
+- Base-fee-only default for every supported payment type, with optional explicitly eligible add-ons.
 - Payment snapshot, evaluated-rule history, audit log, and safe unpaid recalculation.
 - Payment Detail discount/identity section and a dedicated Discount Payment Report.
 - English, Brazilian Portuguese, Portuguese, and Spanish translations.
@@ -24,15 +24,15 @@ The self-assignable Leconfe `Author` account role alone is deliberately not trea
 
 ## Package choice
 
-Use `ConferenceDiscountEligibility-1.0.3.zip` in Leconfe's **Upload Plugin** action. Leconfe 1.4.6 accepts ZIP packages only. The `.tar.gz` is supplied as a supplemental distribution artifact and is not the panel-upload file.
+Use `ConferenceDiscountEligibility-1.1.0.zip` in Leconfe's **Upload Plugin** action. Leconfe 1.4.6 accepts ZIP packages only. The `.tar.gz` is supplied as a supplemental distribution artifact and is not the panel-upload file.
 
 ## Upgrade behavior
 
-Version 1.0.3 adds schema version 2 and one non-destructive column, `conference_discount_domains.identity_policy`. Existing domain rules remain on **Verified email only**. An administrator must explicitly enable author fallback for each intended domain.
+Version 1.1.0 keeps schema version 2 and requires no new database migration. It expands the discount engine and safe recalculation from participant payments to both native Leconfe payment types: participant and submission fees. The earlier `identity_policy` column remains unchanged. Existing domain rules remain on **Verified email only**. An administrator must explicitly enable author fallback for each intended domain.
 
 ## Validation status
 
-Version 1.0.1 was installed in the real Leconfe 1.4.6 panel and successfully recalculated an unpaid participant payment from EUR 30.00 to EUR 18.00, updated Payment Detail, Audit Log, and Invoice 003. Version 1.0.3 adds the author-confirmation path and has passed the isolated automated/source-contract, entrypoint, lint, package, and secret-scan checks recorded in `VALIDATION_REPORT.md`. The 1.0.3 author path is not considered production-validated until the updated ZIP is uploaded and tested in the target panel.
+Version 1.0.1 was installed in the real Leconfe 1.4.6 panel and successfully recalculated an unpaid participant payment from EUR 30.00 to EUR 18.00, updating Payment Detail, Audit Log, and Invoice 003. The author-confirmation path was also exercised in the target panel. Version 1.1.0 adds submission-fee coverage and has passed the isolated automated/source-contract, entrypoint, lint, package, and secret-scan checks recorded in `VALIDATION_REPORT.md`. Submission-fee discounting remains pending validation after upload to the target panel.
 
 PayPal Sandbox remains **PENDING EXTERNAL CREDENTIALS**.
 
@@ -43,6 +43,6 @@ PayPal Sandbox remains **PENDING EXTERNAL CREDENTIALS**.
 - `INSTALLATION.md`
 - `CONFIGURATION.md`
 - `SECURITY.md`
-- `UPGRADE-1.0.3.md`
+- `UPGRADE-1.1.0.md`
 - `VALIDATION_REPORT.md`
 - `CHANGELOG.md`

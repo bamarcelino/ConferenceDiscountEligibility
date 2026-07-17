@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.0 — 2026-07-17 — Participant and Submission Payments
+
+- Expanded automatic discount creation from participant fees to both native Leconfe 1.4.6 payment types: participant and submission fees.
+- Expanded safe unpaid-payment recalculation for direct-user, exact-email, and institutional-domain rules to both payment types.
+- Preserved the same server-side minor-unit calculation, snapshot, negative invoice line, audit trail, and official PayPal flow for submission fees.
+- Added a centralized allow-list so unknown future payment types remain untouched.
+- Added payment-type visibility to the dedicated Discount Payment Report and CSV export.
+- Updated interface text and documentation in English, Portuguese, Brazilian Portuguese, and Spanish.
+- No database migration or core-file modification is required.
+
 ## 1.0.3 — 2026-07-17
 
 - Added exact, case-insensitive email matching against the author list of an eligible submission in the same scheduled conference.

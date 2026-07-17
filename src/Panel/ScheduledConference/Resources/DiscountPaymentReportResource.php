@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ConferenceDiscountEligibility\Panel\ScheduledConference\Resources;
 
+use App\Managers\PaymentManager;
 use ConferenceDiscountEligibility\Models\ConferenceDiscountPaymentSnapshot;
 use ConferenceDiscountEligibility\Panel\ScheduledConference\Resources\DiscountPaymentReportResource\Pages;
 use ConferenceDiscountEligibility\Services\Authorization;
@@ -32,6 +33,7 @@ final class DiscountPaymentReportResource extends Resource
     {
         return $table->columns([
             Tables\Columns\TextColumn::make('payment.invoice')->label(__('ConferenceDiscountEligibility::messages.invoice'))->placeholder('—')->searchable(),
+            Tables\Columns\TextColumn::make('payment.type')->label(__('ConferenceDiscountEligibility::messages.payment_type'))->formatStateUsing(fn ($state) => static::paymentTypeLabel((int) $state))->badge()->sortable(),
             Tables\Columns\TextColumn::make('user.email')->label(__('ConferenceDiscountEligibility::messages.email'))->searchable(),
             Tables\Columns\TextColumn::make('original_total_minor')->label(__('ConferenceDiscountEligibility::messages.standard_total'))->formatStateUsing(fn ($state, $record) => static::formatMoney((int) $state, $record->currency))->sortable(),
             Tables\Columns\TextColumn::make('discount_percentage_basis_points')->label(__('ConferenceDiscountEligibility::messages.discount'))->formatStateUsing(fn ($state) => Percentage::format((int) $state) . '%')->sortable(),
@@ -60,6 +62,7 @@ final class DiscountPaymentReportResource extends Resource
         return $infolist->schema([
             Infolists\Components\Section::make(__('ConferenceDiscountEligibility::messages.discount_details'))->schema([
                 Infolists\Components\TextEntry::make('user.email')->label(__('ConferenceDiscountEligibility::messages.email')),
+                Infolists\Components\TextEntry::make('payment.type')->label(__('ConferenceDiscountEligibility::messages.payment_type'))->formatStateUsing(fn ($state) => static::paymentTypeLabel((int) $state)),
                 Infolists\Components\TextEntry::make('eligibility_type')->label(__('ConferenceDiscountEligibility::messages.origin')),
                 Infolists\Components\TextEntry::make('eligibility_reason')->label(__('ConferenceDiscountEligibility::messages.reason')),
                 Infolists\Components\TextEntry::make('identity_evidence')
@@ -82,6 +85,15 @@ final class DiscountPaymentReportResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()->where('scheduled_conference_id', app()->getCurrentScheduledConference()?->getKey() ?? -1)->with(['payment','user']);
+    }
+
+    public static function paymentTypeLabel(int $type): string
+    {
+        return match ($type) {
+            PaymentManager::TYPE_PARTICIPANT_FEE => __('ConferenceDiscountEligibility::messages.payment_type_participant'),
+            PaymentManager::TYPE_SUBMISSION_FEE => __('ConferenceDiscountEligibility::messages.payment_type_submission'),
+            default => __('ConferenceDiscountEligibility::messages.payment_type_unknown'),
+        };
     }
 
     public static function formatMoney(int $minor, string $currency): string

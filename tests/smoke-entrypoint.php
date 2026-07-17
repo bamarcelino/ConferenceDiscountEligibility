@@ -55,11 +55,24 @@ namespace {
         exit(1);
     }
 
+    if (! ConferenceDiscountEligibility\Support\DiscountablePaymentTypes::contains(App\Managers\PaymentManager::TYPE_PARTICIPANT_FEE)) {
+        fwrite(STDERR, "Participant payments are not marked discountable.\n");
+        exit(1);
+    }
+    if (! ConferenceDiscountEligibility\Support\DiscountablePaymentTypes::contains(App\Managers\PaymentManager::TYPE_SUBMISSION_FEE)) {
+        fwrite(STDERR, "Submission payments are not marked discountable.\n");
+        exit(1);
+    }
+    if (ConferenceDiscountEligibility\Support\DiscountablePaymentTypes::contains(999)) {
+        fwrite(STDERR, "Unknown payment type was incorrectly accepted.\n");
+        exit(1);
+    }
+
     $plugin = require dirname(__DIR__) . '/index.php';
     if (! $plugin instanceof ConferenceDiscountEligibility\ConferenceDiscountEligibilityPlugin) {
         fwrite(STDERR, "index.php did not return the plugin instance.\n");
         exit(1);
     }
 
-    echo "Entrypoint and PaymentManager signature smoke test passed.\n";
+    echo "Entrypoint, PaymentManager signature, and participant/submission payment-type smoke tests passed.\n";
 }

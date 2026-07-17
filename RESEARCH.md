@@ -107,6 +107,10 @@ The implementation uses:
 
 No Leconfe hook is called in the form schema or immediately before `queue()`.
 
+### Submission payment
+
+The submission-payment path also calls `PaymentManager::get()->queue()` with `TYPE_SUBMISSION_FEE`, a `PaymentFee`, the authenticated payment user, the selected amount/currency, and the submission model implementing `HasPayment`. Because both flows converge on the same replaceable manager, the plugin applies the same server-side eligibility selection, integer calculation, snapshot, invoice line, PayPal amount, and audit behavior without editing the submission page or core files.
+
 ### Presenter registration discrepancy
 
 The documentation contains a “Presenter Registration” guide, but the Leconfe 1.4.6 source contains no modern `PresenterRegistration` page/class and `PaymentManager` exposes only:
@@ -116,7 +120,7 @@ The documentation contains a “Presenter Registration” guide, but the Leconfe
 
 The modern PayPal path operates on `App\Models\Payment`. Legacy `Registration`, `RegistrationType`, and `RegistrationPayment` models still exist, but are not the payment object consumed by PaypalPayment 1.1.0.
 
-The independent integration therefore applies to all `TYPE_PARTICIPANT_FEE` payments, including presenter categories configured as participant fees. It deliberately does not alter `TYPE_SUBMISSION_FEE`. A separate presenter-only modern hook cannot be implemented because it does not exist in this target source.
+The independent integration can apply to both native Leconfe payment types: `TYPE_PARTICIPANT_FEE` and `TYPE_SUBMISSION_FEE`. Presenter categories configured as participant fees are covered by `TYPE_PARTICIPANT_FEE`. A separate presenter-only modern hook cannot be implemented because it does not exist in this target source.
 
 ### Payment creation
 
@@ -127,13 +131,13 @@ The independent integration therefore applies to all `TYPE_PARTICIPANT_FEE` paym
 - `amount` and `currency` on the model;
 - `title`, `request_url`, `description`, `additional_items`, and `base_amount` as Metable metadata.
 
-No pre-queue hook exists. The implementation binds `PaymentManager::class` to a compatible subclass and changes only participant-fee queue arguments before calling the parent implementation.
+No pre-queue hook exists. The implementation binds `PaymentManager::class` to a compatible subclass and changes only supported participant- or submission-fee queue arguments before calling the parent implementation.
 
 ### Payment edits
 
 `PaymentDetail::updatePaymentFeeRecord()` recomputes the standard total, updates the Payment, writes `additional_items`, then writes `base_amount`, and may notify the user. Without additional protection that action would remove a discount.
 
-The plugin observes `App\Models\Meta`; when the `base_amount` key is saved for an unpaid participant payment, it recalculates once with a recursion guard. This re-applies the discount before the native notification block proceeds.
+The plugin observes `App\Models\Meta`; when the `base_amount` key is saved for an unpaid supported payment, it recalculates once with a recursion guard. This re-applies the discount before the native notification block proceeds.
 
 ### Invoice and receipt
 
@@ -178,8 +182,9 @@ Currencies whose PayPal representation is not two decimal places are rejected fo
 | Function | Class/file | Hook/extension available | Plugin strategy |
 |---|---|---|---|
 | Fee selection | `ParticipantRegistration::form()` | No Leconfe hook | Filament panel render hook shows server-rendered eligibility/fee preview; core selection remains unchanged |
-| Registration submit | `ParticipantRegistration::submit()` | No pre-submit Leconfe hook | Container-resolved PaymentManager subclass intercepts queue arguments |
-| Presenter payment | No separate 1.4.6 class | None | Participant-fee categories are covered; submission fees are excluded |
+| Participant registration submit | `ParticipantRegistration::submit()` | No pre-submit Leconfe hook | Container-resolved PaymentManager subclass intercepts participant-fee queue arguments |
+| Submission payment submit | Submission billing flow → `PaymentManager::queue()` | No pre-queue hook | The same manager subclass intercepts `TYPE_SUBMISSION_FEE` and delegates final creation to the parent |
+| Presenter payment | No separate 1.4.6 class | None | Presenter categories configured as participant fees are covered |
 | Payment calculation | `PaymentManager::queue()` | Container resolution via `PaymentManager::get()` | Compatible subclass computes final amount in minor units then calls parent |
 | Payment creation | `PaymentManager::queue()` | Container service replacement | Parent creates native Payment; plugin stores snapshot afterward in same transaction |
 | Payment admin edit | `PaymentDetail::updatePaymentFeeRecord()` | No hook | `App\Models\Meta` observer reacts after native `base_amount` write |
