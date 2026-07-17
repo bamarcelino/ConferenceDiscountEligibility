@@ -7,7 +7,7 @@
 - Server-only eligibility and calculation.
 - Integer minor-unit monetary arithmetic and bounded basis points.
 - Exact email normalization and boundary-safe domain matching.
-- Verified-email requirement for domain rules.
+- Verified-email requirement remains the default for domain rules; confirmed-author fallback is explicit per domain.
 - Eloquent guarded/fillable fields and server-assigned conference/actor IDs.
 - Database transactions, row locks, unique snapshot/domain/email constraints, and recursion guards.
 - Paid-payment and PayPal-completion checks before recalculation.
@@ -26,12 +26,18 @@
 | SQL injection | Eloquent/query builder, no user-built SQL |
 | XSS | escaped Blade/Filament output; reason/notes are plain text |
 | Mass assignment | explicit fillable plus server mutation |
-| Domain spoofing | exact/boundary comparison and verified email |
+| Domain spoofing | exact/boundary comparison plus verified email or an explicitly selected, audited author-evidence policy |
 | Frontend value tampering | browser values are ignored by PaymentManager calculation |
 | Duplicate payment/recalculation | unique snapshot, transaction locks, paid checks |
 | CSV abuse | private storage, validation, limit, safe export |
 | Secret disclosure | no gateway secrets read or logged |
 | Audit tampering | no UI edit/delete actions; database access remains a privileged operational boundary |
+
+## Domain author fallback
+
+The `verified_email_or_confirmed_author` option is deliberately not the default. Leconfe allows the Author account role to be self-assigned, so the plugin never treats that role alone as proof. It instead requires same-conference submission evidence and excludes draft/negative terminal statuses.
+
+The exact-email author-list path is still lower assurance than a verified mailbox: a submission owner can enter coauthor metadata. Administrators should enable this fallback only for trusted institutional domains and conferences where authorship data is reviewed. Every accepted fallback records its evidence source and submission identifier for audit.
 
 ## Residual risks
 

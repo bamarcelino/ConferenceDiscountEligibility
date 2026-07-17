@@ -1,126 +1,143 @@
-# VALIDATION REPORT — Conference Discount Eligibility 1.0.1
+# VALIDATION REPORT — Conference Discount Eligibility 1.0.2
 
 ## Identification
 
 | Item | Result |
 |---|---|
 | Report date | 2026-07-17 |
-| Plugin | Conference Discount Eligibility 1.0.1 |
+| Plugin | Conference Discount Eligibility 1.0.2 |
 | Target Leconfe | 1.4.6, official tag commit `f7e369d` |
 | Target Paypal Payment plugin | 1.1.0, official tag commit `6b2a0fc` |
 | Application PHP requirement | `^8.1` from the target release; exact production PHP runtime not supplied |
 | Validation PHP | PHP CLI 8.4.16 NTS |
-| Laravel | Laravel 10 line; exact production/lock patch not independently executable in this container |
-| Filament | 3.3.52 from the target release dependency analysis |
-| Livewire | 3.8.1 from the target release dependency analysis |
+| Laravel | Laravel 10 line; exact production lock patch not executable in this container |
+| Filament | 3.x target line; 3.3.52 recorded from prior target dependency analysis |
+| Livewire | 3.x target line; 3.8.1 recorded from prior target dependency analysis |
 | Validation OS | Debian GNU/Linux 13 (trixie), x86_64 |
 | Production database | Not supplied |
-| Validation database | No PDO database driver available in the build container |
+| Validation database | No PDO driver available beyond base PDO in the build container |
 | PayPal Sandbox | **PENDING EXTERNAL CREDENTIALS** |
 
+## Real-target evidence completed before 1.0.2
 
-## Production evidence that triggered 1.0.1
+Conference Discount Eligibility 1.0.1 was uploaded, enabled, and exercised in the real Leconfe 1.4.6 target.
 
-The 1.0.0 package was uploaded and activated successfully in the target Leconfe 1.4.6 installation. The Scheduled Conference navigation, settings, entitlement/domain resources, audit list, and participant-payment interception were observed in the real panel. A test participant payment produced `discount_not_applied`, confirming the custom `PaymentManager` binding executed. The production test also exposed four operational issues:
+Observed successful results:
 
-1. the direct entitlement shown in the panel belonged to a different account (`brunomarcelino@claec.org`) than the participant payment (`bruno.marcelino@claec.org`);
-2. domain recalculation did not alter the payment, but the exact rejection or failure reason was hidden by the 1.0.0 Audit Log detail error;
-3. the Audit Log record detail route returned HTTP 500, preventing the administrator from viewing the rejection context;
-4. synchronous recalculation displayed a generic completion message even when zero payments were changed.
+- Scheduled Conference navigation and all plugin administration sections rendered.
+- Audit Log detail opened after the 1.0.1 fix.
+- An exact-user entitlement recalculated one unpaid Participant Payment.
+- The payment changed from `EUR 30.00` to `EUR 18.00` for a 40% discount.
+- Payment Detail displayed the original fee, `-EUR 12.00`, final total, reason, source, and snapshot timestamp.
+- Invoice 003 displayed the original line, a negative eligibility-discount line, and total `EUR 18.00`.
+- Audit results reported `matched: 1`, `discounted: 1`, `failed: 0`.
 
-Version 1.0.1 fixes items 3 and 4, makes items 1 and 2 explicit in the panel, and makes edit-form recalculation toggles operational. The updated package has not yet been uploaded to the target panel, so full runtime verification of the hotfix remains pending.
+Observed domain-only result:
+
+- The `claec.org` boundary matched correctly.
+- The account had no `email_verified_at` value.
+- The audit detail recorded `domain #1: email_not_verified` and one rejected unverified-domain candidate.
+
+This is correct behavior for the 1.0.1 security policy and is the production evidence that led to the opt-in author fallback in 1.0.2.
+
+## Scope of 1.0.2
+
+Version 1.0.2 adds:
+
+- a safe default domain policy, `verified_email_only`;
+- an explicit `verified_email_or_confirmed_author` alternative;
+- same-conference author evidence through submission ownership, linked Author participant, or exact author-list email;
+- exclusion of incomplete, declined, payment-declined, and withdrawn submissions;
+- evidence fields in evaluated-rule audit/snapshot metadata;
+- separate recalculation counts for confirmed-author domain matches;
+- an idempotent schema version 2 upgrade;
+- PHP 8.1-compatible source syntax.
+
+The 1.0.2 ZIP has not yet been uploaded to the real target. Therefore, the new author fallback is not claimed as production-tested.
 
 ## Commands executed
 
 ```text
-php tests/run.php
-php tests/smoke-entrypoint.php
-php scripts/lint.php
-php scripts/secret-scan.php
+php -d opcache.enable_cli=0 tests/run.php
+php -d opcache.enable_cli=0 tests/smoke-entrypoint.php
+php -d opcache.enable_cli=0 scripts/lint.php
+php -d opcache.enable_cli=0 scripts/secret-scan.php
 ```
 
-Package validation commands executed:
+Package validation commands are executed after archive creation:
 
 ```text
-php scripts/validate-package.php ConferenceDiscountEligibility-1.0.1.zip
-php scripts/validate-package.php ConferenceDiscountEligibility-1.0.1.tar.gz
-unzip -t ConferenceDiscountEligibility-1.0.1.zip
-unzip -t ConferenceDiscountEligibility-1.0.1-source.zip
-tar -tzf ConferenceDiscountEligibility-1.0.1.tar.gz
+php -d opcache.enable_cli=0 scripts/validate-package.php ConferenceDiscountEligibility-1.0.2.zip
+php -d opcache.enable_cli=0 scripts/validate-package.php ConferenceDiscountEligibility-1.0.2.tar.gz
+unzip -t ConferenceDiscountEligibility-1.0.2.zip
+unzip -t ConferenceDiscountEligibility-1.0.2-source.zip
+tar -tzf ConferenceDiscountEligibility-1.0.2.tar.gz
 sha256sum <artifacts>
 ```
 
-Both package-structure validations passed, both ZIP integrity checks passed, the tarball listing succeeded, and extraction confirmed exactly one `ConferenceDiscountEligibility/` root with `index.php` and `index.yaml` at that level. The extracted source package was retested: 48/48 scenarios passed, the entrypoint/signature smoke test passed, 94 files passed lint, and the secret scan passed.
-
-## Automated test result
+## Automated result
 
 | Suite/check | Executed | Result |
 |---|---:|---|
-| Standalone unit/source-contract scenarios | Yes | **48 passed, 0 failed, 0 skipped** |
+| Standalone unit/source-contract scenarios | Yes | **56 passed, 0 failed, 0 skipped** |
 | Entrypoint and PaymentManager signature smoke test | Yes | Passed |
-| PHP/Blade syntax lint | Yes | **94 files, 0 failed** |
+| PHP/Blade syntax lint | Yes | **100 files, 0 failed** |
 | Runtime-file credential/secret scan | Yes | Passed |
-| PHPUnit/Pest suite | No | Authored PHPUnit tests are included, but PHPUnit/Composer were unavailable |
-| Composer audit | No | **NOT RUN** — Composer and package-network access were unavailable |
-| PHPStan/Psalm | No | **NOT RUN** — tools and full framework dependency graph were unavailable |
+| PHPUnit/Pest full framework suite | No | Authored tests are included; Composer/full Leconfe vendor tree unavailable |
+| Composer audit | No | **NOT RUN** — Composer and package-network access unavailable |
+| PHPStan/Psalm | No | **NOT RUN** — tools and complete framework dependency graph unavailable |
 
-The 48 executed scenarios cover the requested matrix at the isolated logic/source-contract level: no-discount behavior, 40% and 30%, pending email linking, exact and subdomain matching, malicious similar domains, precedence, inactive/future/expired rules, conference isolation, participant/presenter-category coverage, base/add-on scope, EUR and rounding, zero value, invalid percentages, unpaid recalculation controls, paid-payment protection, CSV validation and duplicates, authorization/source scoping, invoice/receipt itemization contract, Payment Detail/report hooks, PayPal amount delegation, success/cancel responsibility boundaries, duplicate protection, and idempotent schema/snapshot design.
+The 56 executed scenarios cover the prior payment/discount matrix plus the 1.0.2 additions: secure domain-policy default, confirmed-author opt-in, accepted/rejected submission statuses, all three author-evidence paths, rejection of Author role alone, shared creation/recalculation verifier, auditable evidence, schema v2 upgrade, admin policy controls, confirmed-author recalculation statistics, and PHP 8.1 syntax compatibility.
 
 Machine-readable output is included at `tests/results/standalone.json` in the source package.
 
-## Installation and activation validation
+## Installation and schema validation
 
 | Check | Status | Evidence/constraint |
 |---|---|---|
-| One root folder in package | Executed after build | Package validator/extraction check |
-| `index.php` and `index.yaml` at expected level | Executed after build | Package validator |
-| Plugin entrypoint returns plugin instance | Passed | Stubbed target-signature smoke test |
-| Upload through authenticated Leconfe panel | **NOT EXECUTED** | No authenticated panel session or staging deployment was supplied |
-| Activation in full Leconfe runtime | **NOT EXECUTED** | Complete release/vendor tree unavailable in the build container |
-| Runtime schema creation | **NOT EXECUTED against a DB** | Schema was linted/reviewed; no PDO database driver was available |
-| Disable/reactivate/update/reinstall | **NOT EXECUTED in panel** | Requires isolated full Leconfe environment |
-| Destructive rollback | **NOT EXECUTED against a DB** | Reversible `SchemaDefinition::down()` and migration `down()` are included |
+| 1.0.1 upload and activation in target panel | Executed | Observed in real Leconfe 1.4.6 panel |
+| 1.0.1 Participant Payment recalculation | Executed | EUR 30.00 → EUR 18.00 |
+| 1.0.1 invoice itemization | Executed | Original EUR 30.00, discount -EUR 12.00, total EUR 18.00 |
+| 1.0.1 domain rejection audit | Executed | `email_not_verified` recorded |
+| 1.0.2 one-root package layout | Executed after build | Archive extraction/validator |
+| 1.0.2 `index.php` and `index.yaml` level | Executed after build | Archive validator |
+| 1.0.2 entrypoint | Passed | Stubbed target-signature smoke test |
+| 1.0.2 schema v2 logic | Source/test validated | Idempotent `identity_policy` column with safe default |
+| 1.0.2 upload/activation in target panel | **NOT YET EXECUTED** | Requires user deployment |
+| 1.0.2 confirmed-author domain recalc | **NOT YET EXECUTED** | Requires real target submission/user data |
 
-## Registration and payment validation
+## Payment and PayPal boundary
 
-| Flow | Result |
-|---|---|
-| Participant-fee calculation | Passed in isolated tests/source-contract checks |
-| Presenter registration | Leconfe 1.4.6 exposes no separate modern `PresenterRegistration` class/type; presenter categories charged as participant fees are covered |
-| Submission payment | Explicitly excluded and delegated unchanged to core |
-| Native Payment final amount | Source contract verifies discount manager passes final amount to `parent::queue()` |
-| Native invoice/receipt itemization | Source contract verifies original base plus negative discount additional item |
-| Payment Detail | Official infolist hook integration authored and linted; full Filament render not executed |
-| Discount Payment Report | Resource/export authored and linted; full Filament render not executed |
-| PayPal simulated amount | `EUR 21.00` contract passed for a `EUR 35.00` fee with 40% discount |
-| PayPal approved return | Kept entirely in official PaypalPayment; source contract confirms this plugin does not call `fulfillQueued()` or set `paid_at` |
-| PayPal cancellation/error/timeout | Responsibility remains official plugin/gateway; this plugin performs no paid-state mutation |
-| PayPal Sandbox | **PENDING EXTERNAL CREDENTIALS** |
+The new identity policy changes only eligibility resolution. It does not alter the monetary or gateway boundary already validated with 1.0.1:
 
-## Security review result
+- only `TYPE_PARTICIPANT_FEE` is discounted;
+- `TYPE_SUBMISSION_FEE` remains unchanged;
+- the final amount is stored on the native Payment;
+- the official PaypalPayment action continues to consume that Payment amount;
+- this plugin never sets `paid_at`, captures PayPal, or calls `fulfillQueued()`.
 
-Implemented controls include scheduled-conference scoping, Leconfe policy authorization, server-only calculation, integer money arithmetic, verified-email domain rules, exact boundary matching, private CSV storage, MIME/size/row/header validation, spreadsheet-formula neutralization on exports, row locks, unique constraints, paid-payment protection, append-only application audit records, HMAC IP hashing, credential redaction, and no PayPal secret handling.
+A PayPal Sandbox transaction using the discounted amount remains **PENDING EXTERNAL CREDENTIALS** and is not reported as passed.
 
-The secret scan found no credential-like material in runtime files.
+## Security result
 
-## Known limitations and residual risks
+Controls retained or added include scheduled-conference isolation, authorization, server-only calculation, integer money arithmetic, boundary-safe domains, a secure verified-email default, explicit confirmed-author opt-in, rejection of self-assigned role-only evidence, same-conference/status-constrained submission evidence, audit metadata, private CSV handling, row locks, paid-payment protection, and no gateway secrets.
 
-1. **No claim of full production certification:** the authenticated panel upload, full Laravel/Filament/Livewire boot, real database migrations, and end-to-end Leconfe flows were not executable in this environment.
-2. **PayPal Sandbox pending:** no secure Sandbox credentials/environment were supplied. This is not reported as passed.
-3. **Open-checkout visibility:** PaypalPayment 1.1.0 does not persist a checkout-start marker before redirect, so an administrator cannot detect a PayPal page open in another browser tab. Unpaid recalculation is explicit and defaults off.
-4. **Presenter model discrepancy:** target source has no separate modern presenter-payment type; participant-fee presenter categories are covered, submission fees are not.
-5. **Reactive add-on preview:** no official form-schema hook exists inside `ParticipantRegistration`. The plugin shows a server-rendered fee/discount preview; the authoritative total is calculated server-side during Payment creation.
-6. **Plugin migration lifecycle:** Leconfe 1.4.6 does not discover plugin migrations and has no pre-uninstall callback. The plugin uses an idempotent boot installer and retains financial data when disabled/uninstalled.
-7. **Currency boundary:** calculation version 1 refuses currencies that are not represented with two decimal places because PaypalPayment 1.1.0 formats exactly two decimals.
-8. **Production runtime unknown:** exact PHP patch and database driver for the Scientia installation were not supplied.
-9. **Composer audit and advanced static analysis:** not executable in the build container; therefore no claim of a clean dependency audit is made.
+Residual risk: exact-email author-list evidence is lower assurance than verified mailbox ownership because author metadata is entered during submission. Administrators should enable the fallback only for trusted institutional domains and reviewed conference submissions.
+
+## Known limitations
+
+1. The new 1.0.2 author fallback has not yet been executed in the production target.
+2. PayPal Sandbox remains pending.
+3. PaypalPayment 1.1.0 has no open-checkout marker; confirm that no PayPal tab is open before unpaid recalculation.
+4. No full framework PHPUnit run, Composer audit, or advanced static analysis was possible in the build container.
+5. The exact production PHP patch and database driver were not supplied.
+6. Leconfe 1.4.6 has no plugin uninstall callback; plugin data is retained on folder removal.
+7. The exact-author-email fallback is an explicitly accepted policy trade-off, not equivalent to verified email.
 
 ## Compatibility conclusion
 
-The source and package structure target **Leconfe 1.4.6 / Paypal Payment 1.1.0** and use verified target extension points: Laravel container resolution of `PaymentManager`, Leconfe's Payment infolist hook, Filament panel registration/render hooks, and Eloquent observers. No Leconfe or PaypalPayment file is modified or bundled.
-
-The package is a **staging validation candidate**, not an honestly certified production release, until the remaining panel/database/Sandbox checks above are executed in an isolated clone of the real installation.
+The source and package target **Leconfe 1.4.6 / Paypal Payment 1.1.0 / PHP ^8.1**. No Leconfe core or PaypalPayment file is modified. Version 1.0.1 has real-target evidence for payment recalculation, Payment Detail, invoice, and auditing. Version 1.0.2 is an automated-test-passing upgrade candidate until its new domain-author policy is exercised in the target panel.
 
 ## Checksums
 
-The authoritative SHA-256 values are generated after archive creation in the external file `ConferenceDiscountEligibility-1.0.1.sha256`. Embedding an archive's final checksum inside that same archive would change the archive and invalidate the value.
+Authoritative SHA-256 values are written after packaging to `ConferenceDiscountEligibility-1.0.2.sha256`.

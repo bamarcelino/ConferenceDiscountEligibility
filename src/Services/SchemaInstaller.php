@@ -12,7 +12,7 @@ use RuntimeException;
 
 final class SchemaInstaller
 {
-    private const LOCK_NAME = 'conference-discount-eligibility-schema-v1';
+    private const LOCK_NAME = 'conference-discount-eligibility-schema-v2';
 
     public function install(): void
     {
@@ -27,11 +27,16 @@ final class SchemaInstaller
                 }
             });
         } catch (LockTimeoutException $exception) {
-            throw new RuntimeException('Timed out while installing Conference Discount Eligibility database tables.', previous: $exception);
+            throw new RuntimeException(
+                'Timed out while installing or upgrading Conference Discount Eligibility database tables.',
+                previous: $exception,
+            );
         }
 
         if (! $this->isInstalled()) {
-            throw new RuntimeException('Conference Discount Eligibility database tables were not installed completely.');
+            throw new RuntimeException(
+                'Conference Discount Eligibility database schema was not installed or upgraded completely.',
+            );
         }
     }
 
@@ -50,7 +55,8 @@ final class SchemaInstaller
             }
         }
 
-        return true;
+        return Schema::hasColumn('conference_discount_domains', 'identity_policy')
+            && Schema::hasColumn('conference_discount_settings', 'schema_version');
     }
 
     public function rollback(): void

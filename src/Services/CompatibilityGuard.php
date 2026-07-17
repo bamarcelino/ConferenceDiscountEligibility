@@ -36,7 +36,7 @@ final class CompatibilityGuard
 
         $version = $this->detectLeconfeVersion();
         if ($version !== null && $version !== self::TARGET_LECONFE_VERSION) {
-            throw new RuntimeException(sprintf('Plugin 1.0.1 supports Leconfe %s; detected %s.', self::TARGET_LECONFE_VERSION, $version));
+            throw new RuntimeException(sprintf('Plugin 1.0.2 supports Leconfe %s; detected %s.', self::TARGET_LECONFE_VERSION, $version));
         }
         if ($version === null) {
             Log::warning('Conference Discount Eligibility could not read the Leconfe version file; the PaymentManager signature guard passed.');

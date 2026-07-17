@@ -14,7 +14,6 @@ final class RecalculationFeedback
         $discounted = (int) ($stats['discounted'] ?? 0);
         $failed = (int) ($stats['failed'] ?? 0);
         $matched = (int) ($stats['matched'] ?? 0);
-        $unverified = (int) ($stats['unverified_domain_matches'] ?? 0);
 
         $notification = Notification::make()
             ->title($discounted > 0
@@ -27,7 +26,8 @@ final class RecalculationFeedback
                 'skipped' => (int) ($stats['skipped'] ?? 0),
                 'paid' => (int) ($stats['paid'] ?? 0),
                 'failed' => $failed,
-                'unverified' => $unverified,
+                'unverified' => (int) ($stats['unverified_domain_matches'] ?? 0),
+                'confirmed_authors' => (int) ($stats['confirmed_author_domain_matches'] ?? 0),
             ]));
 
         if ($failed > 0) {

@@ -6,6 +6,7 @@ namespace ConferenceDiscountEligibility\Services;
 
 use App\Models\User;
 use Carbon\CarbonInterface;
+use ConferenceDiscountEligibility\Data\DomainIdentityDecision;
 use ConferenceDiscountEligibility\Data\EligibilityCandidate;
 use ConferenceDiscountEligibility\Data\EligibilitySelection;
 use ConferenceDiscountEligibility\Enums\EligibilityType;
@@ -21,11 +22,20 @@ final class EligibilityResolver
     public function __construct(
         private readonly EligibilitySelector $selector,
         private readonly EmailEntitlementLinker $linker,
+        private readonly DomainIdentityVerifier $domainIdentityVerifier,
     ) {}
 
-    public function resolve(int $scheduledConferenceId, ?User $user, ?string $email, CarbonInterface $at, bool $lock = false): EligibilitySelection
-    {
-        if ($user !== null) { $this->linker->link($user, $scheduledConferenceId); }
+    public function resolve(
+        int $scheduledConferenceId,
+        ?User $user,
+        ?string $email,
+        CarbonInterface $at,
+        bool $lock = false,
+    ): EligibilitySelection {
+        if ($user !== null) {
+            $this->linker->link($user, $scheduledConferenceId);
+        }
+
         $normalizedEmail = EmailNormalizer::normalize($email ?? $user?->email);
         $candidates = [];
 
@@ -35,7 +45,10 @@ final class EligibilityResolver
                 ->where('eligibility_type', EligibilityType::User->value)
                 ->where('user_id', $user->getKey());
             $this->applyLock($query, $lock);
-            foreach ($query->get() as $rule) { $candidates[] = $this->entitlementCandidate($rule, EligibilityType::User, $at); }
+
+            foreach ($query->get() as $rule) {
+                $candidates[] = $this->entitlementCandidate($rule, EligibilityType::User, $at);
+            }
         }
 
         if ($normalizedEmail !== null) {
@@ -44,7 +57,10 @@ final class EligibilityResolver
                 ->where('eligibility_type', EligibilityType::Email->value)
                 ->where('normalized_email', $normalizedEmail);
             $this->applyLock($query, $lock);
-            foreach ($query->get() as $rule) { $candidates[] = $this->entitlementCandidate($rule, EligibilityType::Email, $at); }
+
+            foreach ($query->get() as $rule) {
+                $candidates[] = $this->entitlementCandidate($rule, EligibilityType::Email, $at);
+            }
 
             $domain = EmailNormalizer::domain($normalizedEmail);
             if ($domain !== null) {
@@ -52,8 +68,20 @@ final class EligibilityResolver
                     ->where('scheduled_conference_id', $scheduledConferenceId)
                     ->whereIn('normalized_domain', DomainMatcher::suffixes($domain));
                 $this->applyLock($query, $lock);
-                $verified = $user?->hasVerifiedEmail() ?? false;
+
+                /** @var array<string, DomainIdentityDecision> $identityDecisions */
+                $identityDecisions = [];
+
                 foreach ($query->get() as $rule) {
+                    $policy = $rule->identityPolicy();
+                    $decision = $identityDecisions[$policy->value]
+                        ??= $this->domainIdentityVerifier->evaluate(
+                            $policy,
+                            $scheduledConferenceId,
+                            $user,
+                            $normalizedEmail,
+                        );
+
                     $reason = RuleValidity::rejectionReason(
                         (bool) $rule->active,
                         $rule->valid_from,
@@ -62,8 +90,17 @@ final class EligibilityResolver
                         (int) $rule->uses_count,
                         $at,
                     );
-                    if (! $verified) { $reason = 'email_not_verified'; }
-                    if (! DomainMatcher::matches($domain, (string) $rule->normalized_domain, (bool) $rule->include_subdomains)) { $reason = 'domain_boundary_mismatch'; }
+
+                    if (! DomainMatcher::matches(
+                        $domain,
+                        (string) $rule->normalized_domain,
+                        (bool) $rule->include_subdomains,
+                    )) {
+                        $reason = 'domain_boundary_mismatch';
+                    } elseif ($reason === null && ! $decision->eligible) {
+                        $reason = $decision->rejectionReason;
+                    }
+
                     $candidates[] = new EligibilityCandidate(
                         type: EligibilityType::Domain,
                         id: (int) $rule->getKey(),
@@ -75,7 +112,8 @@ final class EligibilityResolver
                             'domain' => $domain,
                             'rule_domain' => $rule->normalized_domain,
                             'include_subdomains' => (bool) $rule->include_subdomains,
-                            'email_verified' => $verified,
+                            'identity_policy' => $policy->value,
+                            ...$decision->toArray(),
                         ],
                     );
                 }
@@ -85,8 +123,11 @@ final class EligibilityResolver
         return $this->selector->select($candidates);
     }
 
-    private function entitlementCandidate(ConferenceDiscountEntitlement $rule, EligibilityType $type, CarbonInterface $at): EligibilityCandidate
-    {
+    private function entitlementCandidate(
+        ConferenceDiscountEntitlement $rule,
+        EligibilityType $type,
+        CarbonInterface $at,
+    ): EligibilityCandidate {
         $rejection = RuleValidity::rejectionReason(
             (bool) $rule->active,
             $rule->valid_from,
@@ -95,6 +136,7 @@ final class EligibilityResolver
             (int) $rule->uses_count,
             $at,
         );
+
         return new EligibilityCandidate(
             type: $type,
             id: (int) $rule->getKey(),
@@ -102,12 +144,17 @@ final class EligibilityResolver
             reason: (string) $rule->reason,
             eligible: $rejection === null,
             rejectionReason: $rejection,
-            context: ['source_type' => $rule->source_type, 'source_reference' => $rule->source_reference],
+            context: [
+                'source_type' => $rule->source_type,
+                'source_reference' => $rule->source_reference,
+            ],
         );
     }
 
     private function applyLock(Builder $query, bool $lock): void
     {
-        if ($lock) { $query->lockForUpdate(); }
+        if ($lock) {
+            $query->lockForUpdate();
+        }
     }
 }

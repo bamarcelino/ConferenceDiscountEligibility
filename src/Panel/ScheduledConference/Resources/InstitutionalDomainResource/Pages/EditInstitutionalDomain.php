@@ -15,6 +15,7 @@ final class EditInstitutionalDomain extends EditRecord
     protected static string $resource = InstitutionalDomainResource::class;
 
     private bool $recalculate = false;
+
     private bool $notify = false;
 
     protected function getHeaderActions(): array

@@ -14,6 +14,7 @@ use ConferenceDiscountEligibility\Models\ConferenceDiscountPaymentSnapshot;
 use ConferenceDiscountEligibility\Support\DomainMatcher;
 use ConferenceDiscountEligibility\Support\EmailNormalizer;
 use ConferenceDiscountEligibility\Support\PaymentSafety;
+use InvalidArgumentException;
 use Throwable;
 
 final class RecalculationCoordinator
@@ -22,6 +23,7 @@ final class RecalculationCoordinator
         private readonly UnpaidPaymentRecalculator $recalculator,
         private readonly EmailEntitlementLinker $linker,
         private readonly AuditLogger $auditLogger,
+        private readonly DomainIdentityVerifier $domainIdentityVerifier,
     ) {}
 
     /**
@@ -33,7 +35,8 @@ final class RecalculationCoordinator
      *     skipped:int,
      *     paid:int,
      *     failed:int,
-     *     unverified_domain_matches:int
+     *     unverified_domain_matches:int,
+     *     confirmed_author_domain_matches:int
      * }
      */
     public function run(string $ruleModel, int $ruleId, bool $notify = false): array
@@ -47,10 +50,15 @@ final class RecalculationCoordinator
             'paid' => 0,
             'failed' => 0,
             'unverified_domain_matches' => 0,
+            'confirmed_author_domain_matches' => 0,
         ];
         $paymentIds = [];
         $scheduledConferenceId = 0;
-        $ruleContext = ['rule_model' => $ruleModel, 'rule_id' => $ruleId, 'notify' => $notify];
+        $ruleContext = [
+            'rule_model' => $ruleModel,
+            'rule_id' => $ruleId,
+            'notify' => $notify,
+        ];
 
         if ($ruleModel === 'entitlement') {
             $rule = ConferenceDiscountEntitlement::query()->findOrFail($ruleId);
@@ -60,6 +68,7 @@ final class RecalculationCoordinator
                 $user = User::query()
                     ->whereRaw('LOWER(TRIM(email)) = ?', [$rule->normalized_email])
                     ->first();
+
                 if ($user) {
                     $this->linker->link($user, $scheduledConferenceId);
                     $rule->refresh();
@@ -84,34 +93,61 @@ final class RecalculationCoordinator
         } elseif ($ruleModel === 'domain') {
             $rule = ConferenceDiscountDomain::query()->findOrFail($ruleId);
             $scheduledConferenceId = (int) $rule->scheduled_conference_id;
+            $policy = $rule->identityPolicy();
             $ruleContext += [
                 'rule_domain' => (string) $rule->normalized_domain,
                 'include_subdomains' => (bool) $rule->include_subdomains,
+                'identity_policy' => $policy->value,
             ];
 
             Payment::query()
                 ->where('scheduled_conference_id', $scheduledConferenceId)
                 ->where('type', PaymentManager::TYPE_PARTICIPANT_FEE)
                 ->with('user')
-                ->chunkById(200, function ($payments) use ($rule, &$paymentIds, &$stats): void {
+                ->chunkById(200, function ($payments) use (
+                    $rule,
+                    $policy,
+                    $scheduledConferenceId,
+                    &$paymentIds,
+                    &$stats,
+                ): void {
                     foreach ($payments as $payment) {
                         $user = $payment->user;
                         $domain = EmailNormalizer::domain($user?->email);
-                        if (! $domain || ! DomainMatcher::matches($domain, (string) $rule->normalized_domain, (bool) $rule->include_subdomains)) {
+
+                        if (
+                            ! $domain
+                            || ! DomainMatcher::matches(
+                                $domain,
+                                (string) $rule->normalized_domain,
+                                (bool) $rule->include_subdomains,
+                            )
+                        ) {
                             continue;
                         }
 
                         $stats['candidates']++;
-                        if (! $user?->hasVerifiedEmail()) {
+                        $decision = $this->domainIdentityVerifier->evaluate(
+                            $policy,
+                            $scheduledConferenceId,
+                            $user,
+                            $user?->email,
+                        );
+
+                        if (! $decision->eligible) {
                             $stats['unverified_domain_matches']++;
                             continue;
+                        }
+
+                        if ($decision->usedAuthorEvidence()) {
+                            $stats['confirmed_author_domain_matches']++;
                         }
 
                         $paymentIds[] = (int) $payment->getKey();
                     }
                 });
         } else {
-            throw new \InvalidArgumentException('Unknown recalculation rule model.');
+            throw new InvalidArgumentException('Unknown recalculation rule model.');
         }
 
         $paymentIds = array_values(array_unique($paymentIds));
@@ -136,7 +172,11 @@ final class RecalculationCoordinator
             }
 
             try {
-                $updated = $this->recalculator->recalculate($payment, $notify, 'rule_recalculation');
+                $updated = $this->recalculator->recalculate(
+                    $payment,
+                    $notify,
+                    'rule_recalculation',
+                );
                 $snapshot = ConferenceDiscountPaymentSnapshot::query()
                     ->where('payment_id', $updated->getKey())
                     ->first();

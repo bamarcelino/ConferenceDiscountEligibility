@@ -6,6 +6,7 @@ namespace ConferenceDiscountEligibility\Models;
 
 use App\Models\ScheduledConference;
 use App\Models\User;
+use ConferenceDiscountEligibility\Enums\DomainIdentityPolicy;
 use ConferenceDiscountEligibility\Support\DomainMatcher;
 use ConferenceDiscountEligibility\Support\Percentage;
 use Illuminate\Database\Eloquent\Model;
@@ -25,6 +26,7 @@ final class ConferenceDiscountDomain extends Model
         'reason',
         'notes',
         'include_subdomains',
+        'identity_policy',
         'valid_from',
         'valid_until',
         'active',
@@ -48,7 +50,11 @@ final class ConferenceDiscountDomain extends Model
     {
         static::saving(static function (self $model): void {
             Percentage::assertBasisPoints((int) $model->percentage_basis_points);
-            if ($model->valid_from !== null && $model->valid_until !== null && $model->valid_until->lt($model->valid_from)) {
+            if (
+                $model->valid_from !== null
+                && $model->valid_until !== null
+                && $model->valid_until->lt($model->valid_from)
+            ) {
                 throw new InvalidArgumentException('Validity end must be after validity start.');
             }
             if ($model->maximum_uses !== null && (int) $model->maximum_uses < 1) {
@@ -57,6 +63,8 @@ final class ConferenceDiscountDomain extends Model
 
             $model->original_domain = trim((string) $model->original_domain);
             $model->normalized_domain = DomainMatcher::normalize($model->original_domain);
+            $model->identity_policy = (DomainIdentityPolicy::tryFrom((string) $model->identity_policy)
+                ?? DomainIdentityPolicy::VerifiedEmailOnly)->value;
             if ($model->normalized_domain === null) {
                 throw new InvalidArgumentException('A valid institutional domain is required.');
             }
@@ -72,6 +80,12 @@ final class ConferenceDiscountDomain extends Model
     public function setPercentageAttribute(int|float|string $value): void
     {
         $this->attributes['percentage_basis_points'] = Percentage::percentToBasisPoints($value);
+    }
+
+    public function identityPolicy(): DomainIdentityPolicy
+    {
+        return DomainIdentityPolicy::tryFrom((string) $this->identity_policy)
+            ?? DomainIdentityPolicy::VerifiedEmailOnly;
     }
 
     public function scheduledConference(): BelongsTo

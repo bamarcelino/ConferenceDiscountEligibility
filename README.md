@@ -6,7 +6,9 @@
 
 - Direct eligibility by existing Leconfe user.
 - Pending eligibility by exact email, with later user linking.
-- Verified institutional-domain eligibility with safe subdomain handling.
+- Institutional-domain eligibility with boundary-safe domain and subdomain matching.
+- Secure domain identity policy: verified email by default, with an explicit opt-in fallback for a confirmed conference author.
+- Confirmed-author evidence tied to a real, submitted work in the same scheduled conference; the self-assignable `Author` role alone is never sufficient.
 - CSV preview, dry run, validation, duplicate strategy, import report, and safe exports.
 - Highest-percentage non-cumulative selection.
 - Integer minor-unit calculation and basis-point percentages.
@@ -18,11 +20,13 @@
 
 ## Package choice
 
-Use `ConferenceDiscountEligibility-1.0.1.zip` in Leconfe's **Upload Plugin** action. Leconfe 1.4.6 accepts ZIP packages only. The `.tar.gz` is supplied as a requested supplemental distribution artifact and is not the panel-upload file.
+Use `ConferenceDiscountEligibility-1.0.2.zip` in Leconfe's **Upload Plugin** action. Leconfe 1.4.6 accepts ZIP packages only. The `.tar.gz` is a supplemental distribution artifact and is not the panel-upload file.
 
 ## Validation status
 
-The isolated calculation/source-contract suite passed **48/48** scenarios, the entrypoint/signature smoke test passed, all **94** PHP/Blade files passed `php -l`, and the runtime-file secret scan passed. The full Leconfe panel, database migrations, PHPUnit suite, Composer audit, and PayPal Sandbox flow could not be executed in the supplied environment because the complete deployment/vendor tree, production database/runtime details, Composer, and Sandbox credentials were not available. See `VALIDATION_REPORT.md` before production deployment.
+Version 1.0.1 was installed in the real Leconfe 1.4.6 target. A direct-user recalculation changed an unpaid Participant Payment from **EUR 30.00 to EUR 18.00**, and Payment Detail, the audit trail, and invoice itemization were observed working in the live panel. The same installation also confirmed that the original domain rule rejected an unverified account with `email_not_verified`.
+
+Version 1.0.2 adds the requested, opt-in confirmed-author fallback. Its isolated calculation/source-contract suite passed **56/56** scenarios, the entrypoint/signature smoke test passed, all PHP/Blade files passed `php -l`, and the runtime-file secret scan passed. The 1.0.2 author fallback has not yet been uploaded to the target panel, and PayPal Sandbox remains **PENDING EXTERNAL CREDENTIALS**. See `VALIDATION_REPORT.md` before production deployment.
 
 ## Documentation
 
@@ -33,7 +37,8 @@ The isolated calculation/source-contract suite passed **48/48** scenarios, the e
 - `SECURITY.md`
 - `VALIDATION_REPORT.md`
 - `CHANGELOG.md`
+- `UPGRADE-1.0.2.md`
 
-## 1.0.1 diagnostic hotfix
+## 1.0.2 author-validation update
 
-Version 1.0.1 preserves the 1.0.0 schema and adds visible recalculation statistics, safe failure logging, and a corrected Audit Log detail view. A direct entitlement is bound to the exact `users.id`; email addresses that differ by punctuation represent different accounts. Institutional-domain rules continue to require `email_verified_at`.
+Existing and newly upgraded domain rules remain on **Verified email only**. An authorized administrator can opt a specific domain into **Verified email or confirmed conference author**. The fallback accepts an unverified account only when the same user or exact normalized email is tied to a submitted, non-rejected work in the current scheduled conference. This is intentionally stricter than merely checking whether the account selected the self-assignable Author role.

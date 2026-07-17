@@ -204,11 +204,26 @@ Relevant hooks:
 
 Relevant plugin events include install/enable/disable events, but no migration or uninstall-data lifecycle is exposed for third-party tables.
 
-## User verification and domain safety
+## User verification, author evidence, and domain safety
 
-`App\Models\User` implements Laravel `MustVerifyEmail`, casts `email_verified_at`, and exposes `hasVerifiedEmail()`. Domain eligibility is therefore evaluated only for verified email addresses.
+`App\Models\User` casts `email_verified_at` and exposes `hasVerifiedEmail()`, which returns true only when that timestamp is present. Version 1.0.0/1.0.1 therefore required verified email for every institutional-domain rule. Live testing confirmed the behavior: the domain boundary matched `claec.org`, but the evaluation returned `email_not_verified`.
 
-Domain matching is exact or boundary-safe subdomain matching (`candidate === rule` or `str_ends_with(candidate, '.' . rule)`). It does not accept substring matches such as `fakeuniversidade.edu` or suffix extensions such as `universidade.edu.example.com`.
+The Leconfe 1.4.6 source also shows that the account-level `Author` role is included in `UserRole::selfAssignedRoles()`. It cannot be used by itself as identity proof. Actual conference authorship is represented by stronger, scheduled-conference-scoped records:
+
+- `Submission::user()` / `submissions.user_id` identifies the submission owner; Leconfe's `Submission::isAuthor()` treats that owner as the author.
+- `Submission::participants()` and `Submission::isParticipantAuthor()` identify a user linked to the submission with the Author role.
+- `Submission::authors()` exposes `Author` records, and `Author` stores an email and belongs to a submission.
+
+Submission statuses are backed by `SubmissionStatus`. The accepted author-evidence set is `Queued`, `On Review`, `On Payment`, `On Presentation`, `Editing`, and `Published`. `Incomplete`, `Payment Declined`, `Declined`, and `Withdrawn` are excluded.
+
+Version 1.0.2 therefore adds a per-domain policy rather than weakening all domain rules globally:
+
+- `verified_email_only` remains the default;
+- `verified_email_or_confirmed_author` accepts an unverified account only when one of the real submission links above exists in the same scheduled conference.
+
+The exact-email author-list path is lower assurance than mailbox verification because author metadata is entered during submission. It is retained only as an explicit, audited policy option for trusted institutional domains. The account's self-assigned Author role alone is never accepted.
+
+Domain matching remains exact or boundary-safe subdomain matching (`candidate === rule` or `str_ends_with(candidate, '.' . rule)`). It does not accept substring matches such as `fakeuniversidade.edu` or suffix extensions such as `universidade.edu.example.com`.
 
 ## Independent-plugin conclusion
 

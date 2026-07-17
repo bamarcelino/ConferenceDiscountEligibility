@@ -1,4 +1,4 @@
-# ARCHITECTURE — Conference Discount Eligibility 1.0.1
+# ARCHITECTURE — Conference Discount Eligibility 1.0.2
 
 ## Architectural goals
 
@@ -22,7 +22,7 @@ DiscountAwarePaymentManager ----> EligibilityResolver
         |                                |
         |                                +-- user entitlement
         |                                +-- exact-email entitlement
-        |                                +-- verified institutional domain
+        |                                +-- policy-validated institutional domain
         v
 DiscountCalculator (integer minor units)
         |
@@ -65,7 +65,7 @@ Stores direct-user and exact-email eligibility. The original email is retained f
 
 ### `conference_discount_domains`
 
-Stores normalized domain, subdomain behavior, validity, status, and optional usage limit.
+Stores normalized domain, subdomain behavior, validity, status, optional usage limit, and the per-domain identity policy. Schema version 2 defaults existing and new records to `verified_email_only`.
 
 ### `conference_discount_payment_snapshots`
 
@@ -96,13 +96,26 @@ Nullable unique behavior is backed by application-level transactions and duplica
 2. Link a pending exact-email entitlement to the user when safe.
 3. Evaluate active, currently valid direct-user records.
 4. Evaluate active, currently valid exact-email records.
-5. Evaluate active, currently valid domain records only when email is verified.
-6. Exclude exhausted usage-limited records.
-7. Select the highest basis-point value.
-8. On a percentage tie, prefer direct user, exact email, then domain.
-9. Record every evaluated candidate and the winner.
+5. Evaluate active, currently valid domain records through their configured identity policy.
+6. Under the default policy, require `email_verified_at`. Under the opt-in fallback, accept either verified email or real author evidence in the same scheduled conference.
+7. Exclude exhausted usage-limited records.
+8. Select the highest basis-point value.
+9. On a percentage tie, prefer direct user, exact email, then domain.
+10. Record every evaluated candidate, identity decision, author evidence, and the winner.
 
 Rules are non-cumulative.
+
+## Domain identity assurance
+
+The default `verified_email_only` policy remains the strongest available account-ownership check in Leconfe 1.4.6. The optional `verified_email_or_confirmed_author` policy was added for conferences where reliable email verification is unavailable but the user is already represented in the conference submission data.
+
+Confirmed-author evidence is evaluated only inside the same `scheduled_conference_id` and requires one of:
+
+- the user owns a submission (`submissions.user_id`);
+- the user is linked through `submission_has_participants` with the Author role;
+- the user's exact normalized email appears in the submission `authors` relation.
+
+Only `Queued`, `On Review`, `On Payment`, `On Presentation`, `Editing`, and `Published` submissions count. `Incomplete`, `Declined`, `Payment Declined`, and `Withdrawn` do not. The account-level Author role alone is deliberately ignored because Leconfe exposes it as self-assignable. The selected evidence source and submission identifiers are persisted in evaluated-rule metadata.
 
 ## Calculation
 
@@ -156,7 +169,7 @@ Every page and resource requires the same scheduled-conference update authorizat
 
 ## Installation and schema lifecycle
 
-Plugin boot calls the idempotent installer before registering UI. Disabling the plugin leaves schema/data intact. Because Leconfe has no uninstall callback, uninstalling the folder also leaves data intact by design. A reversible schema class and migration `down()` method are included for controlled rollback.
+Plugin boot calls the idempotent installer before registering UI. Schema version 2 adds `conference_discount_domains.identity_policy` with a safe default and leaves all existing rules, payments, snapshots, and audit records intact. Disabling the plugin leaves schema/data intact. Because Leconfe has no uninstall callback, uninstalling the folder also leaves data intact by design. A reversible schema class and migration `down()` method are included for controlled rollback.
 
 ## Compatibility boundary
 

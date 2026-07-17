@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace ConferenceDiscountEligibility\Database;
 
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 final class SchemaDefinition
 {
-    public const VERSION = 1;
+    public const VERSION = 2;
 
     public static function up(): void
     {
@@ -19,6 +20,7 @@ final class SchemaDefinition
         self::snapshots();
         self::imports();
         self::auditLogs();
+        self::markSchemaVersion();
     }
 
     public static function down(): void
@@ -34,6 +36,12 @@ final class SchemaDefinition
     private static function settings(): void
     {
         if (Schema::hasTable('conference_discount_settings')) {
+            if (! Schema::hasColumn('conference_discount_settings', 'schema_version')) {
+                Schema::table('conference_discount_settings', function (Blueprint $table): void {
+                    $table->unsignedSmallInteger('schema_version')->default(self::VERSION);
+                });
+            }
+
             return;
         }
 
@@ -96,6 +104,13 @@ final class SchemaDefinition
     private static function domains(): void
     {
         if (Schema::hasTable('conference_discount_domains')) {
+            if (! Schema::hasColumn('conference_discount_domains', 'identity_policy')) {
+                Schema::table('conference_discount_domains', function (Blueprint $table): void {
+                    $table->string('identity_policy', 48)
+                        ->default('verified_email_only');
+                });
+            }
+
             return;
         }
 
@@ -108,6 +123,7 @@ final class SchemaDefinition
             $table->string('reason');
             $table->text('notes')->nullable();
             $table->boolean('include_subdomains')->default(false);
+            $table->string('identity_policy', 48)->default('verified_email_only');
             $table->timestamp('valid_from')->nullable();
             $table->timestamp('valid_until')->nullable();
             $table->boolean('active')->default(true);
@@ -226,4 +242,15 @@ final class SchemaDefinition
             $table->foreign('affected_user_id', 'cde_audit_affected_fk')->references('id')->on('users')->nullOnDelete();
         });
     }
+    private static function markSchemaVersion(): void
+    {
+        if (! Schema::hasTable('conference_discount_settings')) {
+            return;
+        }
+
+        DB::table('conference_discount_settings')
+            ->where('schema_version', '<', self::VERSION)
+            ->update(['schema_version' => self::VERSION]);
+    }
+
 }
