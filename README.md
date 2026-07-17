@@ -61,3 +61,10 @@ The 1.2.1 zero-total completion path and the 1.2.0 coupon UI/schema still requir
 - `UPGRADE-1.2.1.md`
 - `VALIDATION_REPORT.md`
 - `CHANGELOG.md`
+
+## Author
+
+**Bruno Cesar Alves Marcelino**  
+Author and Developer
+
+Developed under **Scientia International**.
