@@ -3,6 +3,12 @@
     "description": "Automatic eligibility discounts and secure payment-page coupon redemption for Leconfe 1.4.6.",
     "type": "leconfe-plugin",
     "license": "proprietary",
+    "authors": [
+        {
+            "name": "Bruno Cesar Alves Marcelino",
+            "role": "Author and Developer"
+        }
+    ],
     "require": {
         "php": "^8.1",
         "ext-json": "*",
