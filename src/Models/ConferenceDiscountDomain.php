@@ -63,11 +63,14 @@ final class ConferenceDiscountDomain extends Model
 
             $model->original_domain = trim((string) $model->original_domain);
             $model->normalized_domain = DomainMatcher::normalize($model->original_domain);
-            $model->identity_policy = (DomainIdentityPolicy::tryFrom((string) $model->identity_policy)
-                ?? DomainIdentityPolicy::VerifiedEmailOnly)->value;
             if ($model->normalized_domain === null) {
                 throw new InvalidArgumentException('A valid institutional domain is required.');
             }
+
+            $model->identity_policy = (
+                DomainIdentityPolicy::tryFrom((string) $model->identity_policy)
+                ?? DomainIdentityPolicy::VerifiedEmailOnly
+            )->value;
             $model->uses_count = max(0, (int) ($model->uses_count ?? 0));
         });
     }

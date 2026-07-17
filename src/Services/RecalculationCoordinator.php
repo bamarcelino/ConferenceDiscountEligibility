@@ -7,6 +7,7 @@ namespace ConferenceDiscountEligibility\Services;
 use App\Managers\PaymentManager;
 use App\Models\Payment;
 use App\Models\User;
+use ConferenceDiscountEligibility\Data\DomainIdentityDecision;
 use ConferenceDiscountEligibility\Enums\EligibilityType;
 use ConferenceDiscountEligibility\Models\ConferenceDiscountDomain;
 use ConferenceDiscountEligibility\Models\ConferenceDiscountEntitlement;
@@ -68,7 +69,6 @@ final class RecalculationCoordinator
                 $user = User::query()
                     ->whereRaw('LOWER(TRIM(email)) = ?', [$rule->normalized_email])
                     ->first();
-
                 if ($user) {
                     $this->linker->link($user, $scheduledConferenceId);
                     $rule->refresh();
@@ -100,6 +100,9 @@ final class RecalculationCoordinator
                 'identity_policy' => $policy->value,
             ];
 
+            /** @var array<int, DomainIdentityDecision> $identityDecisions */
+            $identityDecisions = [];
+
             Payment::query()
                 ->where('scheduled_conference_id', $scheduledConferenceId)
                 ->where('type', PaymentManager::TYPE_PARTICIPANT_FEE)
@@ -110,11 +113,11 @@ final class RecalculationCoordinator
                     $scheduledConferenceId,
                     &$paymentIds,
                     &$stats,
+                    &$identityDecisions,
                 ): void {
                     foreach ($payments as $payment) {
                         $user = $payment->user;
                         $domain = EmailNormalizer::domain($user?->email);
-
                         if (
                             ! $domain
                             || ! DomainMatcher::matches(
@@ -127,12 +130,13 @@ final class RecalculationCoordinator
                         }
 
                         $stats['candidates']++;
-                        $decision = $this->domainIdentityVerifier->evaluate(
-                            $policy,
-                            $scheduledConferenceId,
-                            $user,
-                            $user?->email,
-                        );
+                        $userKey = (int) ($user?->getKey() ?? 0);
+                        $decision = $identityDecisions[$userKey]
+                            ??= $this->domainIdentityVerifier->evaluate(
+                                $policy,
+                                $scheduledConferenceId,
+                                $user,
+                            );
 
                         if (! $decision->eligible) {
                             $stats['unverified_domain_matches']++;

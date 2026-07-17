@@ -1,37 +1,31 @@
-# Upgrade to Conference Discount Eligibility 1.0.2
+# Upgrade to 1.0.2
 
-## Why this update exists
+Version 1.0.2 is a non-destructive feature and security update for 1.0.1.
 
-Live testing confirmed that the institutional-domain rule correctly matched `claec.org` but rejected the account because its Leconfe email was not verified. Version 1.0.2 adds a controlled alternative for users who are demonstrably authors in the same scheduled conference.
+## What it adds
+
+- Per-domain identity policy.
+- Secure default: `verified_email_only`.
+- Explicit opt-in: `verified_email_or_confirmed_author`.
+- Confirmed-author evidence based on the exact user owning a submitted work or being linked as an Author participant in the same scheduled conference.
+- Rejection of the self-assignable Author role as standalone proof.
+- Author-evidence fields in evaluated-rule snapshots, Payment Detail, Audit Log, report details, and CSV report export.
+- Recalculation statistic `confirmed_author_domain_matches`.
+- Schema version 2 with an idempotent `identity_policy` column.
 
 ## Upgrade steps
 
-1. Do not initiate PayPal checkout for a payment that will be recalculated.
-2. Back up the database and plugin directory.
-3. Disable Conference Discount Eligibility in Plugin Management.
-4. Upload `ConferenceDiscountEligibility-1.0.2.zip` over the existing plugin.
-5. Re-enable it and reload the panel with `Ctrl+F5`.
-6. Confirm version `1.0.2`.
-7. Open **Discount Eligibility → Institutional Domains → claec.org → Edit**.
-8. Change **Institutional domain identity policy** to **Verified email or confirmed conference author**.
-9. Enable **Recalculate eligible unpaid payments** and save.
+1. Back up the database.
+2. Ensure no PayPal checkout is open for affected unpaid payments.
+3. Upload `ConferenceDiscountEligibility-1.0.2.zip` over the existing plugin.
+4. Reload the scheduled-conference panel and confirm version 1.0.2.
+5. Edit the intended institutional-domain rule.
+6. Select **Verified email or confirmed conference author** only for domains where this fallback is approved.
+7. Save and recalculate unpaid payments.
+8. Verify the Audit Log result and Payment Detail.
 
-## Expected result for the current test account
+Existing domain rules are not weakened automatically; they remain **Verified email only** until explicitly changed.
 
-When the account is tied to a submitted, non-rejected work in `#Cultures 2027`, the recalculation should report one accepted confirmed-author match. The domain rule can then become the winning eligibility source without recreating an individual entitlement.
+## Expected test for `claec.org`
 
-Expected audit evidence includes:
-
-- `identity_policy: verified_email_or_confirmed_author`;
-- `identity_verification_method: confirmed_author`;
-- `author_evidence_source`;
-- `author_evidence_submission_id`;
-- the accepted submission status.
-
-## Security boundary
-
-The account merely selecting the Leconfe Author role is not sufficient because that role is self-assignable. Version 1.0.2 requires evidence tied to a real submission in the same scheduled conference. Verified email remains the recommended policy whenever reliable verification mail is available.
-
-## Rollback
-
-Reinstalling 1.0.1 is not recommended after schema v2 has been used. To disable the new behavior safely, leave 1.0.2 installed and set each domain back to **Verified email only**. The added column is harmless when the fallback is not selected.
+For an unverified `@claec.org` user, the domain rule applies only when that exact user owns or is linked as an Author participant to a submitted work in `#Cultures 2027`. The Audit Log should report one confirmed-author domain match. If it reports one identity-rejected match instead, inspect whether the payment user is actually linked to a qualifying submission in that scheduled conference.

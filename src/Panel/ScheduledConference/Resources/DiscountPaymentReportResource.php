@@ -7,6 +7,7 @@ namespace ConferenceDiscountEligibility\Panel\ScheduledConference\Resources;
 use ConferenceDiscountEligibility\Models\ConferenceDiscountPaymentSnapshot;
 use ConferenceDiscountEligibility\Panel\ScheduledConference\Resources\DiscountPaymentReportResource\Pages;
 use ConferenceDiscountEligibility\Services\Authorization;
+use ConferenceDiscountEligibility\Services\PaymentDetailPresenter;
 use ConferenceDiscountEligibility\Support\Money;
 use ConferenceDiscountEligibility\Support\Percentage;
 use Filament\Infolists;
@@ -38,6 +39,11 @@ final class DiscountPaymentReportResource extends Resource
             Tables\Columns\TextColumn::make('final_total_minor')->label(__('ConferenceDiscountEligibility::messages.final_total'))->formatStateUsing(fn ($state, $record) => static::formatMoney((int) $state, $record->currency))->sortable(),
             Tables\Columns\TextColumn::make('eligibility_reason')->label(__('ConferenceDiscountEligibility::messages.reason'))->limit(35),
             Tables\Columns\TextColumn::make('eligibility_type')->label(__('ConferenceDiscountEligibility::messages.origin'))->badge(),
+            Tables\Columns\TextColumn::make('identity_evidence')
+                ->label(__('ConferenceDiscountEligibility::messages.identity_evidence'))
+                ->state(static fn (ConferenceDiscountPaymentSnapshot $record): string => app(PaymentDetailPresenter::class)->identityEvidenceFromSnapshot($record))
+                ->placeholder('—')
+                ->toggleable(isToggledHiddenByDefault: true),
             Tables\Columns\TextColumn::make('payment.payment_method')->label(__('ConferenceDiscountEligibility::messages.payment_method'))->placeholder('—')->badge(),
             Tables\Columns\TextColumn::make('status')->label(__('ConferenceDiscountEligibility::messages.status'))->state(fn ($record) => $record->payment?->isPaid() ? __('ConferenceDiscountEligibility::messages.paid') : __('ConferenceDiscountEligibility::messages.unpaid'))->badge()->color(fn ($state) => $state === __('ConferenceDiscountEligibility::messages.paid') ? 'success' : 'warning'),
             Tables\Columns\TextColumn::make('paypal_id')->label(__('ConferenceDiscountEligibility::messages.paypal_payment_id'))->state(fn ($record) => $record->payment?->getMeta('paypal_payment_id'))->placeholder('—')->toggleable(isToggledHiddenByDefault: true),
@@ -56,6 +62,10 @@ final class DiscountPaymentReportResource extends Resource
                 Infolists\Components\TextEntry::make('user.email')->label(__('ConferenceDiscountEligibility::messages.email')),
                 Infolists\Components\TextEntry::make('eligibility_type')->label(__('ConferenceDiscountEligibility::messages.origin')),
                 Infolists\Components\TextEntry::make('eligibility_reason')->label(__('ConferenceDiscountEligibility::messages.reason')),
+                Infolists\Components\TextEntry::make('identity_evidence')
+                    ->label(__('ConferenceDiscountEligibility::messages.identity_evidence'))
+                    ->state(static fn (ConferenceDiscountPaymentSnapshot $record): string => app(PaymentDetailPresenter::class)->identityEvidenceFromSnapshot($record))
+                    ->visible(static fn (ConferenceDiscountPaymentSnapshot $record): bool => $record->eligibility_type === 'domain'),
                 Infolists\Components\TextEntry::make('discount_percentage_basis_points')->label(__('ConferenceDiscountEligibility::messages.discount'))->formatStateUsing(fn ($state) => Percentage::format((int) $state) . '%'),
                 Infolists\Components\TextEntry::make('original_base_amount_minor')->label(__('ConferenceDiscountEligibility::messages.standard_fee'))->formatStateUsing(fn ($state, $record) => static::formatMoney((int) $state, $record->currency)),
                 Infolists\Components\TextEntry::make('discount_amount_minor')->label(__('ConferenceDiscountEligibility::messages.discount_amount'))->formatStateUsing(fn ($state, $record) => static::formatMoney(-((int) $state), $record->currency)),

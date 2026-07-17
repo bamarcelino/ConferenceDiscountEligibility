@@ -36,7 +36,7 @@ final class EligibilityResolver
             $this->linker->link($user, $scheduledConferenceId);
         }
 
-        $normalizedEmail = EmailNormalizer::normalize($email ?? $user?->email);
+        $normalizedEmail = EmailNormalizer::normalize($user?->email ?? $email);
         $candidates = [];
 
         if ($user !== null) {
@@ -79,7 +79,6 @@ final class EligibilityResolver
                             $policy,
                             $scheduledConferenceId,
                             $user,
-                            $normalizedEmail,
                         );
 
                     $reason = RuleValidity::rejectionReason(
@@ -112,7 +111,6 @@ final class EligibilityResolver
                             'domain' => $domain,
                             'rule_domain' => $rule->normalized_domain,
                             'include_subdomains' => (bool) $rule->include_subdomains,
-                            'identity_policy' => $policy->value,
                             ...$decision->toArray(),
                         ],
                     );

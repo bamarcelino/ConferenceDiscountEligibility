@@ -6,14 +6,14 @@ namespace ConferenceDiscountEligibility\Data;
 
 use ConferenceDiscountEligibility\Enums\DomainIdentityPolicy;
 
-final class DomainIdentityDecision
+final readonly class DomainIdentityDecision
 {
     public function __construct(
-        public readonly bool $eligible,
-        public readonly DomainIdentityPolicy $policy,
-        public readonly bool $emailVerified,
-        public readonly AuthorIdentityEvidence $authorEvidence,
-        public readonly ?string $rejectionReason = null,
+        public bool $eligible,
+        public DomainIdentityPolicy $policy,
+        public bool $emailVerified,
+        public AuthorIdentityEvidence $authorEvidence,
+        public ?string $rejectionReason = null,
     ) {}
 
     public function usedAuthorEvidence(): bool

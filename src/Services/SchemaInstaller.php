@@ -35,7 +35,7 @@ final class SchemaInstaller
 
         if (! $this->isInstalled()) {
             throw new RuntimeException(
-                'Conference Discount Eligibility database schema was not installed or upgraded completely.',
+                'Conference Discount Eligibility database tables were not installed or upgraded completely.',
             );
         }
     }

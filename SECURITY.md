@@ -7,7 +7,8 @@
 - Server-only eligibility and calculation.
 - Integer minor-unit monetary arithmetic and bounded basis points.
 - Exact email normalization and boundary-safe domain matching.
-- Verified-email requirement remains the default for domain rules; confirmed-author fallback is explicit per domain.
+- Per-domain identity policy with verified email as the default.
+- Optional author fallback requires concrete same-conference submission ownership, participant/Author linkage, or exact email in the submission author list; self-assigned role and author-email metadata alone are rejected.
 - Eloquent guarded/fillable fields and server-assigned conference/actor IDs.
 - Database transactions, row locks, unique snapshot/domain/email constraints, and recursion guards.
 - Paid-payment and PayPal-completion checks before recalculation.
@@ -26,18 +27,17 @@
 | SQL injection | Eloquent/query builder, no user-built SQL |
 | XSS | escaped Blade/Filament output; reason/notes are plain text |
 | Mass assignment | explicit fillable plus server mutation |
-| Domain spoofing | exact/boundary comparison plus verified email or an explicitly selected, audited author-evidence policy |
+| Domain spoofing | exact/boundary comparison plus verified email or explicit confirmed-author policy |
+| Author-role impersonation | the self-assignable Author role alone is never proof; the exact user must be linked to a qualifying submission in the same scheduled conference |
 | Frontend value tampering | browser values are ignored by PaymentManager calculation |
 | Duplicate payment/recalculation | unique snapshot, transaction locks, paid checks |
 | CSV abuse | private storage, validation, limit, safe export |
 | Secret disclosure | no gateway secrets read or logged |
 | Audit tampering | no UI edit/delete actions; database access remains a privileged operational boundary |
 
-## Domain author fallback
+## Domain author-fallback risk decision
 
-The `verified_email_or_confirmed_author` option is deliberately not the default. Leconfe allows the Author account role to be self-assigned, so the plugin never treats that role alone as proof. It instead requires same-conference submission evidence and excludes draft/negative terminal statuses.
-
-The exact-email author-list path is still lower assurance than a verified mailbox: a submission owner can enter coauthor metadata. Administrators should enable this fallback only for trusted institutional domains and conferences where authorship data is reviewed. Every accepted fallback records its evidence source and submission identifier for audit.
+`verified_email_or_confirmed_author` is weaker than verified email and must be enabled per domain. It is intended for conferences where real authors may lack a completed email-verification timestamp. The control binds evidence to the exact authenticated user ID, the exact scheduled conference, a concrete submission relationship, and an allowed submission status. Administrators should keep `verified_email_only` for domains where email verification is operational.
 
 ## Residual risks
 

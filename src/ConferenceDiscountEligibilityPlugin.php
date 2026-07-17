@@ -111,6 +111,10 @@ final class ConferenceDiscountEligibilityPlugin extends Plugin
                         ->label(__('ConferenceDiscountEligibility::messages.origin'))
                         ->badge()
                         ->getStateUsing(static fn (Payment $record): string => (string) ($presenter->snapshot($record)?->eligibility_type ?? '—')),
+                    TextEntry::make('cde_identity_evidence')
+                        ->label(__('ConferenceDiscountEligibility::messages.identity_evidence'))
+                        ->visible(static fn (Payment $record): bool => $presenter->snapshot($record)?->eligibility_type === 'domain')
+                        ->getStateUsing(static fn (Payment $record): string => $presenter->identityEvidence($record)),
                     TextEntry::make('cde_snapshot_at')
                         ->label(__('ConferenceDiscountEligibility::messages.snapshot_at'))
                         ->dateTime()

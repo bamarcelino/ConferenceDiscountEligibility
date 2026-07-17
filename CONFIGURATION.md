@@ -1,35 +1,43 @@
 # Configuration
 
-## Rules
+## Individual Entitlements
 
-### Individual Entitlements
+Select an existing user and configure percentage, reason, validity, status, notes, and optional maximum uses. The entitlement is linked to the exact `users.id`.
 
-Select an existing user and configure percentage, reason, validity, status, notes, and optional maximum uses. The entitlement is bound to the exact `users.id`.
+## Email Lists
 
-### Email Lists
+Enter an exact email address. Matching is trim-normalized and case-insensitive. The original address remains available for display. When a matching user exists or later uses that account, the record is linked to the user.
 
-Enter an exact email address. Matching is trim-normalized and case-insensitive. The original address remains available for display. When a matching user exists or later uses the account, the record is linked to the user.
+## Institutional Domains
 
-### Institutional Domains
+Enter only the domain, for example `universidade.edu`. Matching is boundary-safe:
 
-Enter only the domain, for example `universidade.edu`. Enable subdomains only when intended. Matching is boundary-safe: `user@universidade.edu` can match, while `user@fakeuniversidade.edu` and `user@universidade.edu.example.com` cannot.
+- `user@universidade.edu` matches;
+- `user@fakeuniversidade.edu` does not;
+- `user@universidade.edu.example.com` does not.
 
-Each domain has an identity policy:
+Enable subdomains only when intended.
 
-1. **Verified email only (recommended)** — the Leconfe account must have `email_verified_at`.
-2. **Verified email or confirmed conference author** — verified accounts are accepted normally; an unverified account is accepted only when author evidence exists in the same scheduled conference.
+### Domain identity verification
 
-Confirmed-author evidence is one of:
+Each domain rule has one of two policies.
 
-- the account owns a submitted work;
-- the account is linked as an Author participant on a submitted work;
-- the account's exact normalized email appears in the submitted work's author list.
+#### Verified email only
 
-Only submitted, non-negative statuses are accepted: `Queued`, `On Review`, `On Payment`, `On Presentation`, `Editing`, and `Published`. Draft (`Incomplete`), declined, payment-declined, and withdrawn submissions are excluded.
+Default and strongest option. The user's exact email domain must match and `email_verified_at` must be present in Leconfe.
 
-The Leconfe `Author` account role is self-assignable and therefore is not trusted by itself. The confirmed-author fallback is weaker than verified-email ownership and must be enabled deliberately per institutional domain.
+Existing domain rules remain on this policy after upgrade to 1.0.3.
 
-Existing domain rules upgraded from 1.0.1 remain on **Verified email only** until edited.
+#### Verified email or confirmed conference author
+
+Explicit fallback for installations where author accounts may not have completed email verification. An unverified user is accepted only when that exact user is:
+
+- the owner of a submitted work in the current scheduled conference; or
+- a linked submission participant with role `Author` in the current scheduled conference.
+
+Accepted submission statuses are `Queued`, `On Review`, `On Payment`, `On Presentation`, `Editing`, and `Published`. `Incomplete`, `Payment Declined`, `Declined`, and `Withdrawn` do not establish author evidence.
+
+The self-assignable Author role alone and an email string in author metadata are not accepted as identity proof.
 
 ## Suggested presets
 
@@ -42,7 +50,7 @@ Any percentage from 0.01% through 100.00% may be configured.
 
 Default: **Base registration fee only**.
 
-Optional: **Base fee and eligible add-ons**. Enter one generated add-on key per line. Add-on keys are visible in Payment Fee metadata and begin with `addon_`. Blank keys mean no add-on discount.
+Optional: **Base fee and eligible add-ons**. Enter one generated add-on key per line. Blank keys mean no add-on discount.
 
 ## CSV
 
@@ -52,22 +60,10 @@ Required columns:
 email,discount_percentage,reason,valid_from,valid_until,notes
 ```
 
-Use Preview first, then Dry Run. Choose duplicate strategy:
-
-- `ignore`: keep the existing conference record;
-- `update`: update the existing exact-email rule;
-- `error`: reject duplicates.
-
-Dates use ISO `YYYY-MM-DD` or an ISO date-time. Percentages use decimal percent values such as `40` or `30.5`.
+Use Preview first, then Dry Run. Duplicate strategies are `ignore`, `update`, and `error`. Dates use ISO `YYYY-MM-DD` or ISO date-time values.
 
 ## Recalculation
 
-Completed payments are never changed. Unpaid recalculation is explicit and defaults off because PaypalPayment 1.1.0 does not persist a checkout-start marker before redirect. Confirm no PayPal checkout is open for the affected payment before recalculating.
+Completed payments are never changed. Unpaid recalculation is explicit and defaults off because PaypalPayment 1.1.0 does not persist a checkout-start marker before redirect. Confirm no PayPal checkout is open before recalculating.
 
-For a domain recalc, the result reports:
-
-- domain-matching candidates;
-- identity-accepted matches;
-- discounted, unchanged, skipped, paid, and failed payments;
-- matches rejected because neither verified email nor the selected author fallback was satisfied;
-- matches accepted through confirmed-author evidence.
+The result reports matched, discounted, unchanged, skipped, paid, failed, identity-rejected domain matches, and matches accepted through confirmed authorship.

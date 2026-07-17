@@ -7,6 +7,7 @@ namespace ConferenceDiscountEligibility\Panel\ScheduledConference\Resources;
 use ConferenceDiscountEligibility\Models\ConferenceDiscountAuditLog;
 use ConferenceDiscountEligibility\Panel\ScheduledConference\Resources\AuditLogResource\Pages;
 use ConferenceDiscountEligibility\Services\Authorization;
+use ConferenceDiscountEligibility\Support\AuditValueFormatter;
 use Filament\Infolists;
 use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
@@ -36,7 +37,7 @@ final class AuditLogResource extends Resource
             Tables\Columns\TextColumn::make('origin')->label(__('ConferenceDiscountEligibility::messages.origin'))->badge(),
             Tables\Columns\TextColumn::make('diagnostic_summary')
                 ->label(__('ConferenceDiscountEligibility::messages.result'))
-                ->state(static fn (ConferenceDiscountAuditLog $record): string => self::summary($record))
+                ->getStateUsing(static fn (ConferenceDiscountAuditLog $record): string => self::summary($record))
                 ->wrap()
                 ->limit(140)
                 ->tooltip(static fn (ConferenceDiscountAuditLog $record): string => self::summary($record)),
@@ -57,21 +58,21 @@ final class AuditLogResource extends Resource
                 Infolists\Components\TextEntry::make('ip_hash')->placeholder('—')->copyable(),
                 Infolists\Components\TextEntry::make('diagnostic_summary')
                     ->label(__('ConferenceDiscountEligibility::messages.result'))
-                    ->state(static fn (ConferenceDiscountAuditLog $record): string => self::summary($record))
+                    ->getStateUsing(static fn (ConferenceDiscountAuditLog $record): string => self::summary($record))
                     ->columnSpanFull(),
                 Infolists\Components\TextEntry::make('old_values_pretty')
                     ->label(__('ConferenceDiscountEligibility::messages.old_values'))
-                    ->state(static fn (ConferenceDiscountAuditLog $record): string => self::prettyJson($record->old_values))
+                    ->getStateUsing(static fn (ConferenceDiscountAuditLog $record): string => AuditValueFormatter::json($record->old_values))
                     ->copyable()
                     ->columnSpanFull(),
                 Infolists\Components\TextEntry::make('new_values_pretty')
                     ->label(__('ConferenceDiscountEligibility::messages.new_values'))
-                    ->state(static fn (ConferenceDiscountAuditLog $record): string => self::prettyJson($record->new_values))
+                    ->getStateUsing(static fn (ConferenceDiscountAuditLog $record): string => AuditValueFormatter::json($record->new_values))
                     ->copyable()
                     ->columnSpanFull(),
                 Infolists\Components\TextEntry::make('context_pretty')
                     ->label(__('ConferenceDiscountEligibility::messages.context'))
-                    ->state(static fn (ConferenceDiscountAuditLog $record): string => self::prettyJson($record->context))
+                    ->getStateUsing(static fn (ConferenceDiscountAuditLog $record): string => AuditValueFormatter::json($record->context))
                     ->copyable()
                     ->columnSpanFull(),
             ])->columns(2),
@@ -96,17 +97,6 @@ final class AuditLogResource extends Resource
     public static function canDelete($record): bool { return false; }
     public static function canDeleteAny(): bool { return false; }
     public static function getPages(): array { return ['index' => Pages\ListAuditLogs::route('/'), 'view' => Pages\ViewAuditLog::route('/{record}')]; }
-
-    private static function prettyJson(mixed $value): string
-    {
-        if ($value === null || $value === []) {
-            return '—';
-        }
-
-        $encoded = json_encode($value, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-
-        return is_string($encoded) ? $encoded : '—';
-    }
 
     private static function summary(ConferenceDiscountAuditLog $record): string
     {

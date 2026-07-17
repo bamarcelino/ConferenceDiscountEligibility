@@ -16,15 +16,15 @@ return new class extends Migration
             && ! Schema::hasColumn('conference_discount_domains', 'identity_policy')
         ) {
             Schema::table('conference_discount_domains', function (Blueprint $table): void {
-                $table->string('identity_policy', 48)
-                    ->default('verified_email_only')
-                    ->after('include_subdomains');
+                $table->string('identity_policy', 48)->default('verified_email_only');
             });
         }
 
-        if (Schema::hasTable('conference_discount_settings')) {
-            DB::table('conference_discount_settings')
-                ->update(['schema_version' => 2]);
+        if (
+            Schema::hasTable('conference_discount_settings')
+            && Schema::hasColumn('conference_discount_settings', 'schema_version')
+        ) {
+            DB::table('conference_discount_settings')->update(['schema_version' => 2]);
         }
     }
 
@@ -39,9 +39,11 @@ return new class extends Migration
             });
         }
 
-        if (Schema::hasTable('conference_discount_settings')) {
-            DB::table('conference_discount_settings')
-                ->update(['schema_version' => 1]);
+        if (
+            Schema::hasTable('conference_discount_settings')
+            && Schema::hasColumn('conference_discount_settings', 'schema_version')
+        ) {
+            DB::table('conference_discount_settings')->update(['schema_version' => 1]);
         }
     }
 };

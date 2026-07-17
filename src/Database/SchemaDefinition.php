@@ -106,8 +106,7 @@ final class SchemaDefinition
         if (Schema::hasTable('conference_discount_domains')) {
             if (! Schema::hasColumn('conference_discount_domains', 'identity_policy')) {
                 Schema::table('conference_discount_domains', function (Blueprint $table): void {
-                    $table->string('identity_policy', 48)
-                        ->default('verified_email_only');
+                    $table->string('identity_policy', 48)->default('verified_email_only');
                 });
             }
 
@@ -244,7 +243,8 @@ final class SchemaDefinition
     }
     private static function markSchemaVersion(): void
     {
-        if (! Schema::hasTable('conference_discount_settings')) {
+        if (! Schema::hasTable('conference_discount_settings')
+            || ! Schema::hasColumn('conference_discount_settings', 'schema_version')) {
             return;
         }
 

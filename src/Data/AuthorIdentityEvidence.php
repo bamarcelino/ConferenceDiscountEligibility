@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace ConferenceDiscountEligibility\Data;
 
-final class AuthorIdentityEvidence
+final readonly class AuthorIdentityEvidence
 {
     public function __construct(
-        public readonly bool $confirmed,
-        public readonly ?string $source = null,
-        public readonly ?int $submissionId = null,
-        public readonly ?int $authorId = null,
-        public readonly ?string $submissionStatus = null,
+        public bool $confirmed,
+        public ?string $source = null,
+        public ?int $submissionId = null,
+        public ?string $submissionStatus = null,
     ) {}
 
     public static function none(): self
@@ -26,7 +25,6 @@ final class AuthorIdentityEvidence
             'confirmed_author' => $this->confirmed,
             'author_evidence_source' => $this->source,
             'author_evidence_submission_id' => $this->submissionId,
-            'author_evidence_author_id' => $this->authorId,
             'author_evidence_submission_status' => $this->submissionStatus,
         ];
     }

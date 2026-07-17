@@ -17,7 +17,6 @@ final class DomainIdentityVerifier
         DomainIdentityPolicy $policy,
         int $scheduledConferenceId,
         ?User $user,
-        ?string $email,
     ): DomainIdentityDecision {
         $emailVerified = $user?->hasVerifiedEmail() ?? false;
         $authorEvidence = AuthorIdentityEvidence::none();
@@ -30,7 +29,6 @@ final class DomainIdentityVerifier
             $authorEvidence = $this->authorIdentityVerifier->inspect(
                 $scheduledConferenceId,
                 $user,
-                $email,
             );
         }
 

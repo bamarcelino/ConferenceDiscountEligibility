@@ -1,4 +1,4 @@
-# ARCHITECTURE — Conference Discount Eligibility 1.0.2
+# ARCHITECTURE — Conference Discount Eligibility 1.0.3
 
 ## Architectural goals
 
@@ -22,7 +22,11 @@ DiscountAwarePaymentManager ----> EligibilityResolver
         |                                |
         |                                +-- user entitlement
         |                                +-- exact-email entitlement
-        |                                +-- policy-validated institutional domain
+        |                                +-- institutional domain
+        |                                      |
+        |                                      +-- DomainIdentityVerifier
+        |                                             +-- verified email
+        |                                             +-- confirmed conference author (opt-in)
         v
 DiscountCalculator (integer minor units)
         |
@@ -65,7 +69,7 @@ Stores direct-user and exact-email eligibility. The original email is retained f
 
 ### `conference_discount_domains`
 
-Stores normalized domain, subdomain behavior, validity, status, optional usage limit, and the per-domain identity policy. Schema version 2 defaults existing and new records to `verified_email_only`.
+Stores normalized domain, subdomain behavior, validity, status, optional usage limit, and `identity_policy`. Existing rows default to `verified_email_only`; the optional fallback is `verified_email_or_confirmed_author`.
 
 ### `conference_discount_payment_snapshots`
 
@@ -96,26 +100,28 @@ Nullable unique behavior is backed by application-level transactions and duplica
 2. Link a pending exact-email entitlement to the user when safe.
 3. Evaluate active, currently valid direct-user records.
 4. Evaluate active, currently valid exact-email records.
-5. Evaluate active, currently valid domain records through their configured identity policy.
-6. Under the default policy, require `email_verified_at`. Under the opt-in fallback, accept either verified email or real author evidence in the same scheduled conference.
-7. Exclude exhausted usage-limited records.
-8. Select the highest basis-point value.
-9. On a percentage tie, prefer direct user, exact email, then domain.
-10. Record every evaluated candidate, identity decision, author evidence, and the winner.
+5. For each boundary-matched domain rule, evaluate its explicit identity policy.
+6. Under `verified_email_only`, require `User::hasVerifiedEmail()`.
+7. Under `verified_email_or_confirmed_author`, accept either verified email or concrete author evidence in the same scheduled conference.
+8. Exclude exhausted usage-limited records.
+9. Select the highest basis-point value.
+10. On a percentage tie, prefer direct user, exact email, then domain.
+11. Record every evaluated candidate, identity evidence, and the winner.
 
 Rules are non-cumulative.
 
-## Domain identity assurance
+## Confirmed-author identity evidence
 
-The default `verified_email_only` policy remains the strongest available account-ownership check in Leconfe 1.4.6. The optional `verified_email_or_confirmed_author` policy was added for conferences where reliable email verification is unavailable but the user is already represented in the conference submission data.
+The author fallback is intentionally narrower than the Leconfe account role:
 
-Confirmed-author evidence is evaluated only inside the same `scheduled_conference_id` and requires one of:
+- the exact `users.id` must own a `Submission` in the same `scheduled_conference_id`; or
+- the exact user must be a `SubmissionParticipant` for a submission in that scheduled conference, and that participant's related role must be `UserRole::Author`.
 
-- the user owns a submission (`submissions.user_id`);
-- the user is linked through `submission_has_participants` with the Author role;
-- the user's exact normalized email appears in the submission `authors` relation.
+The submission status must be one of `Queued`, `On Review`, `On Payment`, `On Presentation`, `Editing`, or `Published`. `Incomplete`, `Payment Declined`, `Declined`, and `Withdrawn` are excluded.
 
-Only `Queued`, `On Review`, `On Payment`, `On Presentation`, `Editing`, and `Published` submissions count. `Incomplete`, `Declined`, `Payment Declined`, and `Withdrawn` do not. The account-level Author role alone is deliberately ignored because Leconfe exposes it as self-assignable. The selected evidence source and submission identifiers are persisted in evaluated-rule metadata.
+The verifier uses `Submission::withoutGlobalScopes()` only to avoid accidental current-panel scope leakage, then reapplies an explicit `scheduled_conference_id` predicate. It does not accept the self-assignable Author role by itself and does not trust a matching email string from author metadata.
+
+The resulting snapshot context records `identity_policy`, `email_verified`, `confirmed_author`, verification method, evidence source, submission ID, and submission status. This evidence is available in Audit Log, Payment Detail, and the discount report.
 
 ## Calculation
 
@@ -169,7 +175,7 @@ Every page and resource requires the same scheduled-conference update authorizat
 
 ## Installation and schema lifecycle
 
-Plugin boot calls the idempotent installer before registering UI. Schema version 2 adds `conference_discount_domains.identity_policy` with a safe default and leaves all existing rules, payments, snapshots, and audit records intact. Disabling the plugin leaves schema/data intact. Because Leconfe has no uninstall callback, uninstalling the folder also leaves data intact by design. A reversible schema class and migration `down()` method are included for controlled rollback.
+Plugin boot calls the idempotent installer before registering UI. Schema version 2 adds `conference_discount_domains.identity_policy` with a secure `verified_email_only` default and updates settings rows to schema version 2. Disabling the plugin leaves schema/data intact. Because Leconfe has no uninstall callback, uninstalling the folder also leaves data intact by design. A reversible schema class and migration `down()` method are included for controlled rollback.
 
 ## Compatibility boundary
 

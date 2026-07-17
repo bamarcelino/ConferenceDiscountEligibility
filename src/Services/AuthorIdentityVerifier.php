@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace ConferenceDiscountEligibility\Services;
 
-use App\Models\Author;
 use App\Models\Enums\UserRole;
 use App\Models\Submission;
 use App\Models\User;
@@ -16,11 +15,8 @@ use Illuminate\Database\Eloquent\Builder;
 
 final class AuthorIdentityVerifier
 {
-    public function inspect(
-        int $scheduledConferenceId,
-        User $user,
-        ?string $email = null,
-    ): AuthorIdentityEvidence {
+    public function inspect(int $scheduledConferenceId, User $user): AuthorIdentityEvidence
+    {
         $submission = $this->baseSubmissionQuery($scheduledConferenceId)
             ->where('user_id', $user->getKey())
             ->latest('id')
@@ -45,38 +41,21 @@ final class AuthorIdentityVerifier
             return $this->submissionEvidence('submission_participant_author', $submission);
         }
 
-        $normalizedEmail = EmailNormalizer::normalize($email ?? $user->email);
-        if ($normalizedEmail === null) {
-            return AuthorIdentityEvidence::none();
+        $normalizedEmail = EmailNormalizer::normalize($user->email);
+        if ($normalizedEmail !== null) {
+            $submission = $this->baseSubmissionQuery($scheduledConferenceId)
+                ->whereHas('authors', static function (Builder $query) use ($normalizedEmail): void {
+                    $query->whereRaw('LOWER(TRIM(email)) = ?', [$normalizedEmail]);
+                })
+                ->latest('id')
+                ->first(['id', 'status']);
+
+            if ($submission !== null) {
+                return $this->submissionEvidence('submission_author_email', $submission);
+            }
         }
 
-        $author = Author::query()
-            ->whereRaw('LOWER(TRIM(email)) = ?', [$normalizedEmail])
-            ->whereHas('submission', function (Builder $query) use ($scheduledConferenceId): void {
-                $query
-                    ->withoutGlobalScopes()
-                    ->where('scheduled_conference_id', $scheduledConferenceId)
-                    ->whereIn('status', AuthorEvidencePolicy::acceptedSubmissionStatuses());
-            })
-            ->with(['submission' => static function (Builder $query): void {
-                $query
-                    ->withoutGlobalScopes()
-                    ->select(['id', 'status']);
-            }])
-            ->latest('id')
-            ->first(['id', 'submission_id', 'email']);
-
-        if ($author === null || $author->submission === null) {
-            return AuthorIdentityEvidence::none();
-        }
-
-        return new AuthorIdentityEvidence(
-            confirmed: true,
-            source: 'submission_author_email',
-            submissionId: (int) $author->submission_id,
-            authorId: (int) $author->getKey(),
-            submissionStatus: $this->statusValue($author->submission->status),
-        );
+        return AuthorIdentityEvidence::none();
     }
 
     private function baseSubmissionQuery(int $scheduledConferenceId): Builder
@@ -86,10 +65,8 @@ final class AuthorIdentityVerifier
             ->whereIn('status', AuthorEvidencePolicy::acceptedSubmissionStatuses());
     }
 
-    private function submissionEvidence(
-        string $source,
-        Submission $submission,
-    ): AuthorIdentityEvidence {
+    private function submissionEvidence(string $source, Submission $submission): AuthorIdentityEvidence
+    {
         return new AuthorIdentityEvidence(
             confirmed: true,
             source: $source,

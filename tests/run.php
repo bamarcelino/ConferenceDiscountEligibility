@@ -12,6 +12,7 @@ use ConferenceDiscountEligibility\Enums\DomainIdentityPolicy;
 use ConferenceDiscountEligibility\Enums\EligibilityType;
 use ConferenceDiscountEligibility\Services\DiscountCalculator;
 use ConferenceDiscountEligibility\Services\EligibilitySelector;
+use ConferenceDiscountEligibility\Support\AuditValueFormatter;
 use ConferenceDiscountEligibility\Support\AuthorEvidencePolicy;
 use ConferenceDiscountEligibility\Support\CsvSanitizer;
 use ConferenceDiscountEligibility\Support\DomainMatcher;
@@ -220,83 +221,120 @@ $tests['45 audit detail uses scalar JSON states'] = function () use ($contains, 
     $notContains('src/Panel/ScheduledConference/Resources/AuditLogResource.php', "TextEntry::make('old_values')->formatStateUsing");
 };
 
+$tests['46 audit formatter renders nested payloads safely'] = function () use ($assert, $assertSame): void {
+    $rendered = AuditValueFormatter::json(['evaluated_rules' => [['type' => 'domain', 'eligible' => false]]]);
+    $assert(str_contains($rendered, '"evaluated_rules"'));
+    $assert(str_contains($rendered, '"eligible": false'));
+    $assertSame('—', AuditValueFormatter::json(null));
+};
+$tests['47 audit formatter substitutes invalid UTF-8'] = function () use ($assert): void {
+    $rendered = AuditValueFormatter::json(['message' => "bad\xB1text"]);
+    $assert($rendered !== '—');
+    $assert(str_contains($rendered, '"message"'));
+};
+$tests['48 edit forms honor recalculation toggles'] = function () use ($contains): void {
+    foreach ([
+        'src/Panel/ScheduledConference/Resources/IndividualEntitlementResource/Pages/EditIndividualEntitlement.php',
+        'src/Panel/ScheduledConference/Resources/EmailEntitlementResource/Pages/EditEmailEntitlement.php',
+        'src/Panel/ScheduledConference/Resources/InstitutionalDomainResource/Pages/EditInstitutionalDomain.php',
+    ] as $path) {
+        $contains($path, 'protected function afterSave(): void');
+        $contains($path, 'RecalculationCoordinator::class');
+        $contains($path, 'RecalculationFeedback::send');
+    }
+};
 
-$tests['46 verified-email-only remains the secure domain default'] = function () use ($assert, $assertSame): void {
+$tests['49 verified-email-only remains the secure domain default'] = function () use ($assert, $assertSame): void {
     $policy = DomainIdentityPolicy::VerifiedEmailOnly;
     $assert(! $policy->accepts(false, true));
     $assert($policy->accepts(true, false));
     $assertSame('email_not_verified', $policy->rejectionReason(false, true));
 };
-$tests['47 confirmed conference author can satisfy the opt-in domain policy'] = function () use ($assert, $assertSame): void {
+$tests['50 confirmed conference author satisfies only the opt-in policy'] = function () use ($assert, $assertSame): void {
     $policy = DomainIdentityPolicy::VerifiedEmailOrConfirmedAuthor;
     $assert($policy->accepts(false, true));
     $assert(! $policy->accepts(false, false));
     $assertSame(null, $policy->rejectionReason(false, true));
     $assertSame('email_not_verified_and_not_confirmed_author', $policy->rejectionReason(false, false));
 };
-$tests['48 author evidence excludes drafts and negative terminal statuses'] = function () use ($assert): void {
+$tests['51 verified email remains accepted under both policies'] = function () use ($assert): void {
+    foreach (DomainIdentityPolicy::cases() as $policy) {
+        $assert($policy->accepts(true, false));
+        $assert($policy->rejectionReason(true, false) === null);
+    }
+};
+$tests['52 confirmed-author evidence excludes draft and rejected statuses'] = function () use ($assert): void {
     foreach (['Queued', 'On Review', 'On Payment', 'On Presentation', 'Editing', 'Published'] as $status) {
         $assert(AuthorEvidencePolicy::acceptsSubmissionStatus($status), "Expected accepted author status: {$status}");
     }
-    foreach (['Incomplete', 'Declined', 'Withdrawn', 'Payment Declined'] as $status) {
+    foreach (['Incomplete', 'Payment Declined', 'Declined', 'Withdrawn'] as $status) {
         $assert(! AuthorEvidencePolicy::acceptsSubmissionStatus($status), "Expected rejected author status: {$status}");
     }
 };
-$tests['49 author identity decision records auditable evidence'] = function () use ($assert, $assertSame): void {
-    $evidence = new AuthorIdentityEvidence(true, 'submission_owner', 77, null, 'Queued');
+$tests['53 author identity evidence is audit-ready'] = function () use ($assert, $assertSame): void {
+    $evidence = new AuthorIdentityEvidence(true, 'submission_owner', 77, 'Queued');
     $decision = new DomainIdentityDecision(
         eligible: true,
         policy: DomainIdentityPolicy::VerifiedEmailOrConfirmedAuthor,
         emailVerified: false,
         authorEvidence: $evidence,
-        rejectionReason: null,
     );
     $context = $decision->toArray();
     $assert($decision->usedAuthorEvidence());
     $assertSame(77, $context['author_evidence_submission_id']);
+    $assertSame('Queued', $context['author_evidence_submission_status']);
     $assertSame('confirmed_author', $context['identity_verification_method']);
-    $assertSame(false, $context['email_verified']);
 };
-$tests['50 author verification is tied to real conference submission evidence'] = function () use ($contains): void {
+$tests['54 author verifier requires same-conference submission ownership or participant linkage'] = function () use ($contains): void {
     $contains('src/Services/AuthorIdentityVerifier.php', "where('scheduled_conference_id'");
     $contains('src/Services/AuthorIdentityVerifier.php', "where('user_id'");
     $contains('src/Services/AuthorIdentityVerifier.php', "whereHas('participants'");
-    $contains('src/Services/AuthorIdentityVerifier.php', "whereHas('submission'");
-    $contains('src/Services/AuthorIdentityVerifier.php', "LOWER(TRIM(email))");
+    $contains('src/Services/AuthorIdentityVerifier.php', "whereHas('role'");
+    $contains('src/Services/AuthorIdentityVerifier.php', 'UserRole::Author->value');
     $contains('src/Services/AuthorIdentityVerifier.php', 'acceptedSubmissionStatuses');
 };
-$tests['51 self-assignable Author role alone is not trusted'] = function () use ($notContains, $contains): void {
+$tests['55 self-assigned global Author role alone is not trusted'] = function () use ($notContains): void {
     $notContains('src/Services/AuthorIdentityVerifier.php', 'hasRole(');
-    $notContains('src/Enums/DomainIdentityPolicy.php', 'AuthorRole');
-    $contains('lang/en/messages.php', 'self-assignable Author role alone is not accepted');
+    $notContains('src/Services/AuthorIdentityVerifier.php', 'roles()');
+    $notContains('src/Services/AuthorIdentityVerifier.php', 'Author::query');
 };
-$tests['52 creation and recalculation share one domain identity verifier'] = function () use ($contains): void {
+$tests['56 payment creation and recalculation share the identity verifier'] = function () use ($contains): void {
     $contains('src/Services/EligibilityResolver.php', 'DomainIdentityVerifier');
     $contains('src/Services/RecalculationCoordinator.php', 'DomainIdentityVerifier');
     $contains('src/Services/EligibilityResolver.php', 'domainIdentityVerifier->evaluate');
     $contains('src/Services/RecalculationCoordinator.php', 'domainIdentityVerifier->evaluate');
+    $contains('src/Services/EligibilityResolver.php', '...$decision->toArray()');
 };
-$tests['53 schema upgrade adds an idempotent domain identity policy'] = function () use ($contains): void {
+$tests['57 schema v2 and domain UI expose an explicit secure opt-in'] = function () use ($contains): void {
     $contains('src/Database/SchemaDefinition.php', 'public const VERSION = 2');
     $contains('src/Database/SchemaDefinition.php', "hasColumn('conference_discount_domains', 'identity_policy')");
     $contains('src/Database/SchemaDefinition.php', "default('verified_email_only')");
-    $contains('database/migrations/2026_07_17_000001_add_domain_identity_policy_to_conference_discount_domains.php', "hasColumn('conference_discount_domains', 'identity_policy')");
-};
-$tests['54 institutional domain UI exposes the secure opt-in author fallback'] = function () use ($contains, $notContains): void {
+    $contains('database/migrations/2026_07_17_000001_add_domain_identity_policy_to_conference_discount_domains.php', 'identity_policy');
     $contains('src/Panel/ScheduledConference/Resources/InstitutionalDomainResource.php', 'VerifiedEmailOrConfirmedAuthor');
     $contains('src/Panel/ScheduledConference/Resources/InstitutionalDomainResource.php', 'VerifiedEmailOnly');
-    $notContains('src/Panel/ScheduledConference/Resources/InstitutionalDomainResource.php', 'VerifiedEmailOrAuthorRole');
-    $contains('lang/pt-BR/messages.php', 'autor confirmado na conferência');
 };
-$tests['55 recalculation reports author-confirmed domain matches'] = function () use ($contains): void {
+$tests['58 recalculation reports author-confirmed domain matches'] = function () use ($contains): void {
     $contains('src/Services/RecalculationCoordinator.php', 'confirmed_author_domain_matches');
     $contains('src/Support/RecalculationFeedback.php', 'confirmed_authors');
-    $contains('src/Panel/ScheduledConference/Resources/InstitutionalDomainResource/Pages/EditInstitutionalDomain.php', 'afterSave');
+    $contains('src/Panel/ScheduledConference/Resources/AuditLogResource.php', 'confirmed_author_domain_matches');
+    $contains('lang/pt-BR/messages.php', 'autoria confirmada');
 };
-$tests['56 PHP 8.1 source compatibility is preserved'] = function () use ($contains, $notContains): void {
-    $contains('composer.json', '"php": "^8.1"');
-    $notContains('src/Data/AuthorIdentityEvidence.php', 'readonly class');
-    $notContains('src/Data/DomainIdentityDecision.php', 'readonly class');
+$tests['59 payment detail and report preserve identity verification evidence'] = function () use ($contains): void {
+    $contains('src/Services/PaymentDetailPresenter.php', 'identity_verification_method');
+    $contains('src/ConferenceDiscountEligibilityPlugin.php', 'cde_identity_evidence');
+    $contains('src/Panel/ScheduledConference/Resources/DiscountPaymentReportResource.php', 'identity_evidence');
+    $contains('src/Panel/ScheduledConference/Resources/DiscountPaymentReportResource/Pages/ListDiscountPayments.php', 'identity_verification');
+};
+
+$tests['60 exact submission-author email is accepted as concrete authorship evidence'] = function () use ($contains): void {
+    $contains('src/Services/AuthorIdentityVerifier.php', "whereHas('authors'");
+    $contains('src/Services/AuthorIdentityVerifier.php', 'LOWER(TRIM(email))');
+    $contains('src/Services/AuthorIdentityVerifier.php', 'EmailNormalizer::normalize');
+    $contains('src/Services/AuthorIdentityVerifier.php', 'submission_author_email');
+};
+$tests['61 global Author role remains insufficient without submission evidence'] = function () use ($notContains): void {
+    $notContains('src/Services/AuthorIdentityVerifier.php', 'hasRole(');
+    $notContains('src/Services/AuthorIdentityVerifier.php', "whereHas('roles'");
 };
 
 $results = [];

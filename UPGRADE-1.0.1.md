@@ -4,37 +4,36 @@ This is a non-destructive code-only hotfix for Conference Discount Eligibility 1
 
 ## What it fixes
 
-- Audit Log detail records no longer render JSON arrays through the failing state formatter.
-- Recalculation displays the actual result instead of a generic success message.
-- Recalculation failures are reported to the Laravel log and represented in the audit trail.
+- Audit Log detail records no longer pass array/JSON payloads directly to the failing Filament text-state renderer.
+- Recalculation displays the actual result instead of a generic completion message.
+- Recalculation failures are sent to the Laravel log and represented in the audit trail instead of being swallowed silently.
 - Domain matches rejected because `email_verified_at` is empty are counted explicitly.
-- The individual-entitlement form warns that the selected `users.id` is authoritative.
+- Recalculation toggles on edit forms now execute.
+- User selection shows the exact account email and numeric user ID.
 
 ## Upgrade
 
 1. Back up the database.
-2. In the Scheduled Conference plugin manager, upload `ConferenceDiscountEligibility-1.0.1.zip` using the same Chrome MIME helper if the Leconfe upload field rejects the browser-provided ZIP MIME type.
-3. Reload the panel after the upload completes.
-4. Confirm the plugin version is 1.0.1 and remains enabled.
-5. Open Audit Log. The list now has a Result column, and View should open without HTTP 500.
+2. Do not start PayPal for the unpaid payment that will be recalculated.
+3. In the Scheduled Conference plugin manager, upload `ConferenceDiscountEligibility-1.0.1.zip` over the existing plugin. Use the same Chrome MIME helper only if Leconfe rejects the browser-provided ZIP MIME type.
+4. Reload the panel. If the old version is still displayed, disable and enable the plugin once, then reload again.
+5. Confirm the plugin version is 1.0.1.
+6. Open Audit Log. The list now contains a Result column, and View should open without HTTP 500.
 
-There are no schema changes. Existing settings, rules, snapshots, and audit logs are retained.
+There are no schema changes. Existing settings, rules, snapshots, payments, and audit records are retained.
 
-## Correcting the current test payment
+## Correcting Participant Payment #3
 
-The participant payment belongs to `bruno.marcelino@claec.org`. The previously displayed individual entitlement belonged to the different account `brunomarcelino@claec.org`.
+The participant payment belongs to `bruno.marcelino@claec.org`. The individual entitlement previously shown belonged to the different account `brunomarcelino@claec.org`.
 
-Create one of the following for the exact dotted address/account:
+Create an Individual Entitlement for the exact dotted address/account. In the search result, verify the displayed user ID before saving. Keep **Recalculate eligible unpaid payments** enabled.
 
-- Individual Entitlement: select the option displaying `bruno.marcelino@claec.org` and verify the shown user ID; or
-- Email Lists: add `bruno.marcelino@claec.org` exactly.
+For a EUR 30.00 fee and a 40% discount, a successful notification should report at least:
 
-Keep **Recalculate eligible unpaid payments** enabled. A successful correction should report at least:
+- matched: 1;
+- discounted: 1;
+- failed: 0.
 
-- Matched: 1
-- Discounted: 1
-- Failed: 0
+Payment #3 should become EUR 18.00 and Invoice 003 should show a EUR -12.00 discount line.
 
-For a EUR 30.00 fee and 40% discount, Payment #3 should become EUR 18.00, and Invoice 003 should show a EUR -12.00 discount line.
-
-A domain rule for `claec.org` remains intentionally ineligible while the user email is not verified. In 1.0.1, the notification reports that condition as an unverified-domain match instead of silently reporting completion.
+A `claec.org` domain rule applies only when the account email is verified. Version 1.0.1 reports an unverified-domain match explicitly; it does not weaken this security rule.
