@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.1 - 2026-07-17 - Automatic Completion for 100% Discounts
+
+- Added automatic completion when a valid automatic rule or coupon reduces the complete native Payment total to zero.
+- Uses Leconfe's native `PaymentManager::fulfillQueued()` with payment method `full_discount`; no PayPal checkout is created for zero-value payments.
+- Preserves invoice, receipt, snapshot, audit history, paid state, and coupon consumption.
+- Suppresses queued Participant/Submission "Payment Required" notifications after zero-value completion and sends the native `PaymentConfirmed` notification after commit.
+- Keeps payments pending when non-discounted add-ons leave a positive remainder.
+- Added zero-total handling to payment creation, coupon application/removal, explicit recalculation, and native fee-edit snapshot reapplication.
+- Added English, Portuguese, Brazilian Portuguese, and Spanish zero-payment messages.
+- No schema migration is required; all 1.2.0 data is preserved.
+
 ## 1.2.0 - 2026-07-17 - Coupon Campaigns and Payment-Page Redemption
 
 - Added Scheduled Conference **Coupon Campaigns** administration.

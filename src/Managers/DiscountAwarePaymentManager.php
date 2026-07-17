@@ -10,6 +10,7 @@ use App\Models\PaymentFee;
 use App\Models\User;
 use Carbon\Carbon;
 use ConferenceDiscountEligibility\Services\AuditLogger;
+use ConferenceDiscountEligibility\Services\FullDiscountSettlementService;
 use ConferenceDiscountEligibility\Services\PaymentDiscountService;
 use ConferenceDiscountEligibility\Services\SnapshotService;
 use ConferenceDiscountEligibility\Support\DiscountablePaymentTypes;
@@ -23,6 +24,7 @@ final class DiscountAwarePaymentManager extends PaymentManager
         private readonly PaymentDiscountService $discounts,
         private readonly SnapshotService $snapshots,
         private readonly AuditLogger $auditLogger,
+        private readonly FullDiscountSettlementService $fullDiscountSettlement,
     ) {}
 
     public function queue(
@@ -101,7 +103,14 @@ final class DiscountAwarePaymentManager extends PaymentManager
                 context: ['evaluated_rules' => $prepared->selection->evaluatedAsArray()],
                 origin: 'payment_queue',
             );
-            return $payment;
+
+            return $this->fullDiscountSettlement->settleIfZero(
+                $payment,
+                $prepared->calculation->finalTotalMinor,
+                $resolvedCurrency,
+                'payment_queue',
+                $user?->getKey(),
+            );
         });
     }
 

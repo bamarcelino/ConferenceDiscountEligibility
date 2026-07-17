@@ -13,10 +13,10 @@
 1. Back up the Leconfe database and plugin directory.
 2. Confirm no PayPal checkout is open for a payment that may be changed.
 3. Open **Plugin Management** and disable Conference Discount Eligibility temporarily.
-4. Upload `ConferenceDiscountEligibility-1.2.0.zip` over the existing plugin.
+4. Upload `ConferenceDiscountEligibility-1.2.1.zip` over the existing plugin.
 5. Enable the plugin.
 6. Refresh with `Ctrl + Shift + R`.
-7. Confirm version 1.2.0.
+7. Confirm version 1.2.1.
 8. Open **Discount Eligibility - Settings** and review **Allow coupon entry on payment pages**.
 
 The enabled plugin runs its idempotent schema installer. Schema version 3 adds coupon campaigns, coupon redemptions, the coupon snapshot foreign key, and the conference-level coupon setting. Existing records are preserved.
@@ -26,7 +26,7 @@ The enabled plugin runs its idempotent schema installer. Schema version 3 adds c
 1. Back up the database.
 2. Keep Paypal Payment 1.1.0 installed and configured.
 3. Open **Plugin Management - Upload Plugin**.
-4. Upload `ConferenceDiscountEligibility-1.2.0.zip`.
+4. Upload `ConferenceDiscountEligibility-1.2.1.zip`.
 5. Enable the plugin.
 6. Open **Discount Eligibility - Settings**.
 7. Keep **Base fee only** initially.

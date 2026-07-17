@@ -317,3 +317,11 @@ Coupon modification uses the same `PaymentSafety::canRecalculate()` policy as ad
 ### Independent-plugin conclusion for coupons
 
 The requested payment-stage coupon field is implementable as an independent plugin using the verified Payment Detail infolist hook and a plugin-owned Livewire component. No core patch, textual replacement, PayPal duplication, or manual PHP copy is required. Final browser execution still needs confirmation in the target panel after installing version 1.2.0; local validation cannot substitute for that authenticated Filament/Livewire test.
+
+## 1.2.1 - zero-value payment handling
+
+Leconfe 1.4.6's native `PaymentManager::fulfillQueued()` records `paid_at`, `payment_method`, and `paid_by`. `PaymentDetail` hides gateway actions once `Payment::isPaid()` is true. PaypalPayment 1.1.0 always builds a PayPal purchase from `Payment.amount`, so a zero total must be completed inside Leconfe rather than sent to PayPal.
+
+Participant and Submission payment-required notifications do not inspect `paid_at` before rendering. Version 1.2.1 therefore suppresses those two queued notification classes only when the related Payment has already been completed with `payment_method = full_discount`, then sends Leconfe's native `PaymentConfirmed` notification after commit.
+
+No core patch or PayPal-plugin modification is required. No database migration is required.

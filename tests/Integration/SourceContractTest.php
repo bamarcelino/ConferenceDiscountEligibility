@@ -114,4 +114,49 @@ final class SourceContractTest extends TestCase
         self::assertStringContainsString('lockForUpdate', $service);
     }
 
+    public function testOneHundredPercentDiscountUsesNativeZeroValueFulfillmentWithoutPaypal(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $settlement = (string) file_get_contents(
+            $root . '/src/Services/FullDiscountSettlementService.php',
+        );
+
+        self::assertStringContainsString('PaymentManager::get()->fulfillQueued', $settlement);
+        self::assertStringContainsString('FullDiscountPolicy::PAYMENT_METHOD', $settlement);
+        self::assertStringContainsString("'gateway_required' => false", $settlement);
+        self::assertStringNotContainsString('Omnipay', $settlement);
+        self::assertStringNotContainsString('paypal_payment_id', $settlement);
+    }
+
+    public function testPaymentRequiredNotificationsAreSuppressedAfterFullDiscountCompletion(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $plugin = (string) file_get_contents($root . '/src/ConferenceDiscountEligibilityPlugin.php');
+        $listener = (string) file_get_contents(
+            $root . '/src/Listeners/SuppressPaymentRequiredForFullDiscount.php',
+        );
+
+        self::assertStringContainsString('NotificationSending::class', $plugin);
+        self::assertStringContainsString('SuppressPaymentRequiredForFullDiscount::class', $plugin);
+        self::assertStringContainsString('ParticipantPayment', $listener);
+        self::assertStringContainsString('SubmissionPayment', $listener);
+        self::assertStringContainsString('return false', $listener);
+    }
+
+    public function testZeroTotalCompletionRunsAfterCouponReservationAndSnapshot(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $coupon = (string) file_get_contents($root . '/src/Services/CouponRedemptionService.php');
+        $manager = (string) file_get_contents($root . '/src/Managers/DiscountAwarePaymentManager.php');
+
+        self::assertLessThan(
+            strpos($coupon, 'settleIfZero'),
+            strpos($coupon, 'ConferenceDiscountCouponRedemption::query()->updateOrCreate'),
+        );
+        self::assertLessThan(
+            strpos($manager, 'settleIfZero'),
+            strpos($manager, '$this->snapshots->record'),
+        );
+    }
+
 }

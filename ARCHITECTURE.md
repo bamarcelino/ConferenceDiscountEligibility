@@ -1,4 +1,4 @@
-# ARCHITECTURE - Conference Discount Eligibility 1.2.0
+# ARCHITECTURE - Conference Discount Eligibility 1.2.1
 
 ## Architectural goals
 
@@ -70,7 +70,7 @@ Both native Leconfe 1.4.6 types are supported:
 
 Unknown future payment types are delegated unchanged.
 
-The plugin does not override `fulfillQueued()` and does not set `paid_at`. The official payment mechanism remains solely responsible for completing payments.
+The plugin does not override `fulfillQueued()`. Positive-value payments remain solely under the official gateway lifecycle. For a final total of exactly zero, `FullDiscountSettlementService` invokes the native `PaymentManager::fulfillQueued()` with `payment_method = full_discount`; this avoids sending an invalid zero-value order to PayPal while preserving the native paid state.
 
 ### Payment-detail infolist hook
 
@@ -93,7 +93,7 @@ The browser submits only the coupon string. Percentage, reason, amount, eligibil
 
 ### Payment observer
 
-The official PayPal plugin calls the native `PaymentManager::fulfillQueued()`, which updates `paid_at`. The plugin observes that native update and changes a reserved coupon to consumed. The observer is idempotent and does not modify the Payment.
+For positive totals, the official PayPal plugin calls the native `PaymentManager::fulfillQueued()`, which updates `paid_at`. For zero totals, `FullDiscountSettlementService` calls the same native method with `full_discount`. The Payment observer consumes a reserved coupon after either native paid-state transition. The observer is idempotent.
 
 ### Metadata observer
 
@@ -226,6 +226,19 @@ When native `paid_at` changes from null to a timestamp, the Payment observer con
 ### Release
 
 Replacement, explicit removal, or administrative recalculation that changes the winner releases the coupon and decrements its snapshot use count.
+
+## Zero-value settlement boundary
+
+`FullDiscountPolicy` authorizes automatic settlement only when `final_total_minor === 0`; negative totals are rejected and positive remainders remain pending. `FullDiscountSettlementService` locks the Payment, revalidates that no payment transaction is in progress, confirms the persisted amount is zero, ensures invoice/receipt numbering, calls native `fulfillQueued()`, records non-secret settlement metadata, audits the operation, and schedules the native `PaymentConfirmed` notification after commit.
+
+A `NotificationSending` listener suppresses queued `ParticipantPayment` and `SubmissionPayment` notifications when the same Payment is already completed by `full_discount`, preventing a contradictory "Payment Required" message. It does not suppress any positive-value payment notification.
+
+The settlement service is called after snapshot and line-item persistence in four paths:
+
+1. new Participant or Submission Payment creation;
+2. payment-page coupon application;
+3. coupon removal when a remaining automatic 100% rule wins;
+4. explicit unpaid recalculation or native fee-edit snapshot reapplication.
 
 ## PayPal boundary
 

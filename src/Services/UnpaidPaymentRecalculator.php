@@ -22,6 +22,7 @@ final class UnpaidPaymentRecalculator
         private readonly SnapshotService $snapshots,
         private readonly AuditLogger $auditLogger,
         private readonly CouponEligibilityService $couponEligibility,
+        private readonly FullDiscountSettlementService $fullDiscountSettlement,
     ) {}
 
     public function recalculate(Payment $payment, bool $notify = false, string $origin = 'admin_recalculation'): Payment
@@ -92,7 +93,14 @@ final class UnpaidPaymentRecalculator
                 context: ['evaluated_rules' => $prepared->selection->evaluatedAsArray()],
                 origin: $origin,
             );
-            return $locked->refresh();
+
+            return $this->fullDiscountSettlement->settleIfZero(
+                $locked,
+                $prepared->calculation->finalTotalMinor,
+                $currency,
+                $origin,
+                $locked->user_id ? (int) $locked->user_id : null,
+            );
         });
 
         if ($notify && $updated->user !== null) {
@@ -119,7 +127,14 @@ final class UnpaidPaymentRecalculator
             $locked->forceFill(['amount' => Money::decimalFloat($prepared->calculation->finalTotalMinor, $currency)])->save();
             $locked->setMeta('additional_items', $prepared->additionalItems);
             $this->snapshots->record($locked, $prepared, 'native_fee_edit');
-            return $locked->refresh();
+
+            return $this->fullDiscountSettlement->settleIfZero(
+                $locked,
+                $prepared->calculation->finalTotalMinor,
+                $currency,
+                'native_fee_edit',
+                $locked->user_id ? (int) $locked->user_id : null,
+            );
         });
     }
 }

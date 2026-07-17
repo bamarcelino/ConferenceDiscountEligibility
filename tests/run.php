@@ -19,6 +19,7 @@ use ConferenceDiscountEligibility\Support\CouponCode;
 use ConferenceDiscountEligibility\Support\CsvSanitizer;
 use ConferenceDiscountEligibility\Support\DomainMatcher;
 use ConferenceDiscountEligibility\Support\EmailNormalizer;
+use ConferenceDiscountEligibility\Support\FullDiscountPolicy;
 use ConferenceDiscountEligibility\Support\Money;
 use ConferenceDiscountEligibility\Support\PaypalAmountContract;
 use ConferenceDiscountEligibility\Support\Percentage;
@@ -386,8 +387,8 @@ $tests['67 all locales describe participant and submission recalculation'] = fun
     $contains('lang/es/messages.php', 'participante y de envío');
     $contains('lang/pt-BR/messages.php', 'participante e de submissão');
 };
-$tests['68 version 1.2.0 documents coupons on payment pages'] = function () use ($contains): void {
-    $contains('index.yaml', 'version: "1.2.0"');
+$tests['68 version 1.2.1 retains coupons on payment pages'] = function () use ($contains): void {
+    $contains('index.yaml', 'version: "1.2.1"');
     $contains('CHANGELOG.md', 'Coupon Campaigns and Payment-Page Redemption');
     $contains('ARCHITECTURE.md', 'PaymentManager::getPaymentMethodInfolist');
 };
@@ -564,11 +565,85 @@ $tests['99 migration and installer require every coupon structure'] = function (
     $contains('src/Services/SchemaInstaller.php', "'conference_discount_coupon_redemptions'");
     $contains('src/Services/SchemaInstaller.php', "hasColumn('conference_discount_payment_snapshots', 'coupon_campaign_id')");
 };
-$tests['100 plugin 1.2.0 includes coupon campaign administration and payment-page redemption'] = function () use ($contains): void {
-    $contains('index.yaml', 'version: "1.2.0"');
+$tests['100 plugin 1.2.1 includes coupon campaign administration and payment-page redemption'] = function () use ($contains): void {
+    $contains('index.yaml', 'version: "1.2.1"');
     $contains('src/ConferenceDiscountEligibilityPlugin.php', 'CouponCampaignResource::class');
     $contains('src/ConferenceDiscountEligibilityPlugin.php', "Livewire::component('conference-discount-coupon-redemption'");
-    $contains('UPGRADE-1.2.0.md', 'Coupon Campaigns');
+    $contains('UPGRADE-1.2.1.md', '100%');
+};
+
+$tests['101 full discount policy settles exactly zero'] = function () use ($assert): void {
+    $assert(FullDiscountPolicy::shouldSettle(0));
+};
+$tests['102 full discount policy leaves positive totals pending'] = function () use ($assert): void {
+    $assert(! FullDiscountPolicy::shouldSettle(1));
+    $assert(! FullDiscountPolicy::shouldSettle(500));
+};
+$tests['103 full discount policy rejects negative totals'] = function () use ($assert): void {
+    try { FullDiscountPolicy::shouldSettle(-1); $assert(false); } catch (InvalidArgumentException) {}
+};
+$tests['104 one hundred percent base discount reaches zero without add-ons'] = function () use ($assertSame, $calc): void {
+    $r = $calc(2500, [], 10000);
+    $assertSame(2500, $r->discountAmountMinor);
+    $assertSame(0, $r->finalTotalMinor);
+};
+$tests['105 one hundred percent base-only discount preserves payable add-ons'] = function () use ($assertSame, $calc): void {
+    $r = $calc(2500, [['key'=>'dinner','amount'=>5,'quantity'=>1]], 10000, DiscountScope::BaseRegistrationFeeOnly, [], 3000);
+    $assertSame(2500, $r->discountAmountMinor);
+    $assertSame(500, $r->finalTotalMinor);
+};
+$tests['106 one hundred percent eligible-add-on discount reaches zero'] = function () use ($assertSame, $calc): void {
+    $r = $calc(2500, [['key'=>'dinner','amount'=>5,'quantity'=>1]], 10000, DiscountScope::BaseFeeAndEligibleAddOns, ['dinner'], 3000);
+    $assertSame(3000, $r->discountAmountMinor);
+    $assertSame(0, $r->finalTotalMinor);
+};
+$tests['107 zero-value settlement uses native fulfillment and no gateway'] = function () use ($contains, $notContains): void {
+    $contains('src/Services/FullDiscountSettlementService.php', 'PaymentManager::get()->fulfillQueued');
+    $contains('src/Services/FullDiscountSettlementService.php', 'FullDiscountPolicy::PAYMENT_METHOD');
+    $contains('src/Services/FullDiscountSettlementService.php', "'gateway_required' => false");
+    $contains('src/Services/FullDiscountSettlementService.php', 'ensureInvoice()');
+    $contains('src/Services/FullDiscountSettlementService.php', 'generateReceiptNumber');
+    $notContains('src/Services/FullDiscountSettlementService.php', 'Omnipay');
+    $notContains('src/Services/FullDiscountSettlementService.php', 'paypal_payment_id');
+};
+$tests['108 new automatic zero payments are completed after snapshot creation'] = function () use ($contains, $source, $assert): void {
+    $contains('src/Managers/DiscountAwarePaymentManager.php', 'settleIfZero');
+    $manager = $source('src/Managers/DiscountAwarePaymentManager.php');
+    $assert(strpos($manager, '$this->snapshots->record') < strpos($manager, 'settleIfZero'));
+};
+$tests['109 coupon reservations are created before full-discount completion'] = function () use ($source, $assert): void {
+    $service = $source('src/Services/CouponRedemptionService.php');
+    $assert(strpos($service, 'ConferenceDiscountCouponRedemption::query()->updateOrCreate') < strpos($service, 'settleIfZero'));
+    $assert(str_contains($service, "'completed'"));
+    $assert(str_contains($service, 'coupon_applied_payment_completed'));
+};
+$tests['110 recalculation and native fee edits complete zero-value payments'] = function () use ($contains): void {
+    $contains('src/Services/UnpaidPaymentRecalculator.php', 'settleIfZero');
+    $contains('src/Services/UnpaidPaymentRecalculator.php', "'native_fee_edit'");
+};
+$tests['111 payment-required notifications are suppressed for completed full discounts'] = function () use ($contains): void {
+    $contains('src/ConferenceDiscountEligibilityPlugin.php', 'NotificationSending::class');
+    $contains('src/ConferenceDiscountEligibilityPlugin.php', 'SuppressPaymentRequiredForFullDiscount::class');
+    $contains('src/Listeners/SuppressPaymentRequiredForFullDiscount.php', 'ParticipantPayment');
+    $contains('src/Listeners/SuppressPaymentRequiredForFullDiscount.php', 'SubmissionPayment');
+    $contains('src/Listeners/SuppressPaymentRequiredForFullDiscount.php', 'return false');
+};
+$tests['112 completed full discounts send the native confirmation notification after commit'] = function () use ($contains): void {
+    $contains('src/Services/FullDiscountSettlementService.php', 'DB::afterCommit');
+    $contains('src/Services/FullDiscountSettlementService.php', 'new PaymentConfirmed');
+};
+$tests['113 payment page explains that no gateway is required'] = function () use ($contains): void {
+    $contains('resources/views/livewire/coupon-redemption.blade.php', 'full_discount_no_payment_required');
+    $contains('resources/views/livewire/coupon-redemption.blade.php', 'full_discount_registration_confirmed');
+    foreach (['lang/en/messages.php', 'lang/es/messages.php', 'lang/pt-BR/messages.php'] as $path) {
+        $contains($path, "'coupon_applied_payment_completed'");
+        $contains($path, "'full_discount_no_payment_required'");
+    }
+};
+$tests['114 version 1.2.1 documents automatic completion for zero totals'] = function () use ($contains): void {
+    $contains('index.yaml', 'version: "1.2.1"');
+    $contains('CHANGELOG.md', 'Automatic Completion for 100% Discounts');
+    $contains('UPGRADE-1.2.1.md', 'full_discount');
 };
 
 $results = [];

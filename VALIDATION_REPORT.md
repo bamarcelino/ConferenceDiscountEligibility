@@ -1,9 +1,9 @@
-# Validation Report - Conference Discount Eligibility 1.2.0
+# Validation Report - Conference Discount Eligibility 1.2.1
 
 ## Identification
 
 - Date: 2026-07-17
-- Plugin: Conference Discount Eligibility 1.2.0
+- Plugin: Conference Discount Eligibility 1.2.1
 - Target Leconfe: 1.4.6
 - Target Leconfe tag commit: `f7e369d`
 - Target Paypal Payment plugin: 1.1.0
@@ -15,18 +15,24 @@
 - Target Livewire: 3.8.1
 - Validation operating system: Linux x86_64
 - Production database driver: not exposed by the target panel
-- Plugin schema version: 3
+- Plugin schema version: 3 - unchanged from 1.2.0
 
-## Scope of version 1.2.0
+## Scope of version 1.2.1
 
-Version 1.2.0 adds Scheduled Conference coupon campaigns and a server-validated coupon field to unpaid Participant Payment and Submission Payment pages. It uses the official `PaymentManager::getPaymentMethodInfolist` extension point, keeps automatic user/email/domain discounts, applies only the highest valid percentage, and keeps Paypal Payment 1.1.0 as the only payment gateway.
+Version 1.2.1 adds safe automatic completion when a valid automatic discount or coupon reduces the complete native Payment total to exactly zero.
 
-New persistent structures:
+The implementation:
 
-- `conference_discount_coupons`;
-- `conference_discount_coupon_redemptions`;
-- `conference_discount_payment_snapshots.coupon_campaign_id`;
-- `conference_discount_settings.coupon_redemption_enabled`.
+- keeps positive-value Participant and Submission Payments under Paypal Payment 1.1.0;
+- calls Leconfe's native `PaymentManager::fulfillQueued()` only for zero-value Payments;
+- records `payment_method = full_discount` and `paid_at`;
+- does not create PayPal identifiers or a PayPal checkout for zero totals;
+- preserves invoice, receipt, negative discount line, snapshot, report, and audit information;
+- consumes a reserved coupon through the existing paid-state observer;
+- suppresses contradictory queued Payment Required notifications and sends Leconfe's native Payment Confirmed notification after commit;
+- leaves the Payment pending when non-discounted add-ons produce a positive remainder.
+
+No database migration is introduced.
 
 ## Commands executed
 
@@ -36,92 +42,85 @@ php tests/smoke-entrypoint.php
 php tests/payment-manager-runtime.php
 php scripts/lint.php
 php scripts/secret-scan.php
-php scripts/validate-package.php <installable ZIP>
-php scripts/validate-package.php <TAR.GZ>
-unzip -t <installable ZIP>
-unzip -t <source ZIP>
-tar -tzf <TAR.GZ>
-sha256sum -c ConferenceDiscountEligibility-1.2.0.sha256
+php scripts/validate-package.php ConferenceDiscountEligibility-1.2.1.zip
+php scripts/validate-package.php ConferenceDiscountEligibility-1.2.1.tar.gz
+unzip -t ConferenceDiscountEligibility-1.2.1.zip
+unzip -t ConferenceDiscountEligibility-1.2.1-source.zip
+tar -tzf ConferenceDiscountEligibility-1.2.1.tar.gz
+sha256sum -c ConferenceDiscountEligibility-1.2.1.sha256
 ```
 
-The package and checksum commands are completed during the final packaging stage and their results are recorded in the external copy of this report and the SHA-256 manifest.
-
-## Executed results before packaging
+## Executed source results
 
 | Check | Result |
 |---|---|
-| Standalone unit/source/security scenarios | 100/100 passed; 0 failed; 0 skipped |
+| Standalone unit/source/security scenarios | 114/114 passed; 0 failed; 0 skipped |
 | Entrypoint and PaymentManager signature smoke test | Passed |
 | Participant/submission payment-type smoke test | Passed |
-| Runtime queue simulation | Passed for Participant Payment and Submission Payment; both converted EUR 25.00 to EUR 15.00 under a 40% discount |
-| PHP/Blade syntax lint | 125 files checked; 0 failures |
+| Runtime queue simulation | Passed for Participant and Submission Payments under 40% and 100% discounts |
+| 40% runtime result | EUR 25.00 became EUR 15.00 |
+| 100% runtime delegation result | EUR 25.00 became EUR 0.00 and was delegated to zero-value settlement |
+| PHP/Blade syntax lint | 128 files checked; 0 failures |
 | Secret/credential pattern scan | Passed |
-| PHPUnit test methods authored | 25 methods |
-| PHPUnit execution against full Laravel/Filament tree | NOT RUN - dependencies unavailable in the isolated build container |
-| Composer audit | NOT RUN - Composer/package-network access unavailable |
+| PHPUnit test methods authored | 28 methods |
+| PHPUnit execution against full Laravel/Filament tree | NOT RUN - full application dependency tree unavailable in the isolated build container |
+| Composer audit | NOT RUN - Composer and a resolved plugin `composer.lock` were unavailable |
 | PHPStan/Psalm | NOT RUN - tools unavailable |
 
-## Coupon scenarios covered by executed standalone tests
+## 100% discount scenarios covered
 
-- normalization, restricted format, keyed hashing, masked hints, and cryptographic generation;
-- scheduled-conference isolation;
-- participant and submission payment scope;
-- optional Payment Fee restrictions;
-- inactive, future, expired, exhausted, wrong-type, and wrong-fee campaigns;
-- global and per-user limits;
-- transaction and pessimistic-lock source contracts;
-- highest-percentage selection with direct-user, email, and domain rules;
-- tie priority and non-cumulative behavior;
-- prevention of downgrade by a lower second coupon;
-- reservation, replacement, release, and consumption lifecycle;
-- paid/initiated-payment immutability;
-- native Payment amount and negative invoice-item update;
-- restoration of the best automatic rule after removal;
-- official Payment Detail infolist hook and nested Livewire component;
-- Payment authorization, current-conference scoping, and rate limiting;
-- audit records that exclude plaintext codes and code hashes;
-- English, Brazilian Portuguese, Portuguese, and Spanish message coverage;
-- schema upgrade, rollback ordering, and package manifest version.
+- 100% base fee without add-ons produces final total zero;
+- base-fee-only scope preserves a positive add-on remainder;
+- eligible add-ons may also be reduced to zero when configured;
+- negative totals are rejected;
+- positive totals are not auto-completed;
+- new Participant and Submission Payments delegate zero totals after snapshot creation;
+- coupon reservations are persisted before zero-value completion;
+- coupon removal can complete the Payment when a remaining automatic 100% rule wins;
+- explicit recalculation and native fee-edit snapshot reapplication handle zero totals;
+- native `fulfillQueued()` is used with `full_discount`;
+- no Omnipay or PayPal metadata is created by the settlement service;
+- invoice and receipt generation paths are preserved;
+- Payment Required notifications are suppressed only after full-discount completion;
+- native Payment Confirmed notification is scheduled after commit;
+- payment-page messaging explains that no gateway is required.
 
-## PayPal integration contract
+## PayPal boundary
 
-- The coupon plugin never calls `fulfillQueued()`.
-- It never marks a Payment paid and never implements a PayPal gateway.
-- A winning coupon changes the native unpaid `Payment.amount` before checkout.
-- Paypal Payment 1.1.0 remains responsible for creating checkout, validating amount/currency on return, recording PayPal metadata, and setting paid state.
-- A Payment observer consumes an already reserved coupon only after Leconfe changes `paid_at`.
+Paypal Payment 1.1.0 reads `Payment.amount` and always attempts to create a PayPal purchase. Version 1.2.1 therefore prevents a zero-value Payment from reaching the gateway. Positive totals, including positive add-on remainders after a 100% base discount, continue to use the official PayPal flow.
+
+The plugin does not implement PayPal checkout, returns, cancellation, credentials, or PayPal transaction identifiers.
 
 ## Real target evidence inherited from earlier versions
 
-The plugin family has been installed in the real Leconfe 1.4.6 target. Automatic discounts have been observed on Participant Payment and Submission Payment, including recalculation, Payment Detail, Audit Log, and invoice itemization. These observations validate the existing automatic-discount path, not the new 1.2.0 coupon UI.
+The plugin family has been installed in the real Leconfe 1.4.6 target. Automatic discounts have been observed on Participant and Submission Payments, including recalculation, Payment Detail, Audit Log, and invoice itemization. Coupon 1.2.0 and zero-value settlement 1.2.1 still require authenticated target-panel execution.
 
-## Target tests still required for 1.2.0
+## Target tests still required
 
-The following are not reported as completed until version 1.2.0 is uploaded to the authenticated target panel:
-
-- schema version 3 installation against the production database driver;
-- Coupon Campaign creation and one-time full-code display;
-- Livewire coupon field rendering on Participant Payment and Submission Payment;
-- invalid/expired/exhausted/wrong-fee browser cases;
-- successful coupon reservation and invoice refresh;
-- coupon removal and automatic-rule restoration;
-- concurrent redemption behavior on the production database;
-- PayPal Sandbox checkout receiving the coupon-adjusted amount;
-- approved, canceled, failed, timeout, duplicate-return, receipt, `paid_at`, PayPal ID, and consumed-reservation checks.
+- upload and activation of version 1.2.1 through the Leconfe panel;
+- application of a 100% coupon to an unpaid Participant Payment;
+- application of a 100% coupon to an unpaid Submission Payment;
+- verification of `paid_at`, `payment_method = full_discount`, receipt, invoice, and consumed coupon;
+- confirmation that no PayPal action remains visible for the completed zero-value Payment;
+- confirmation that no Payment Required email/database notification is delivered;
+- confirmation that Payment Confirmed is delivered;
+- 100% base-only coupon with a positive add-on remainder reaching PayPal with only that remainder;
+- concurrent 100% redemption behavior on the production database;
+- PayPal Sandbox positive-remainder flow.
 
 PayPal Sandbox status: **PENDING EXTERNAL CREDENTIALS**.
 
 ## Known limitations and residual risks
 
-1. Paypal Payment 1.1.0 does not persist an open-checkout marker before redirect. A short multi-tab window remains in which a user could open PayPal and then attempt to alter a still-unmarked Payment. The UI warns against this; changes are blocked as soon as payment method or PayPal completion metadata exists.
-2. Coupon hashes use Laravel `APP_KEY`; rotating that key invalidates active code lookups.
-3. The full coupon code cannot be recovered from the database and must be copied when created or regenerated.
-4. Production database engine and exact PHP patch were not exposed by the panel, so database-engine-specific runtime behavior still requires target validation.
+1. Full Laravel/Filament integration tests were not executed in the isolated build container.
+2. The production database engine is not exposed by the panel, so engine-specific locking behavior still needs target validation.
+3. Paypal Payment 1.1.0 does not persist a checkout-start marker before redirect. This limitation remains relevant only for positive-value payments.
+4. The native Payment Confirmed notification uses Leconfe's existing English template; plugin UI messages are translated in English, Portuguese, Brazilian Portuguese, and Spanish.
 
 ## Compatibility conclusion
 
-At the inspected API boundary, version 1.2.0 is compatible with Leconfe 1.4.6 and Paypal Payment 1.1.0. The source passes all executed standalone, signature, runtime-simulation, lint, and secret-scan checks. Final production acceptance requires installation through the official panel and the authenticated browser/Sandbox checks listed above.
+At the inspected API boundary, version 1.2.1 remains compatible with Leconfe 1.4.6 and Paypal Payment 1.1.0. All executed standalone, signature, runtime-simulation, lint, secret-scan, and archive-structure checks passed. Final acceptance of the 100% path requires the authenticated target tests listed above.
 
 ## Package checksum
 
-The final archive checksums are published in `ConferenceDiscountEligibility-1.2.0.sha256`. The external distributed copy of this report is updated after archive creation with the installable ZIP checksum; an archive cannot safely embed its own final checksum without creating a self-referential hash.
+The final archive checksums are published in `ConferenceDiscountEligibility-1.2.1.sha256`. The separately distributed validation report may include the installable ZIP checksum after archive creation; the report embedded inside the archive cannot safely contain the archive's own final hash.

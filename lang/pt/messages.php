@@ -169,4 +169,11 @@ return [
     'coupon_status_revoked' => 'Revogado',
     'type_coupon' => 'Cupom',
 
+    'coupon_applied_payment_completed' => 'Cupão aplicado. O total final é zero, pelo que não é necessário abrir o meio de pagamento e o pagamento foi concluído automaticamente.',
+    'coupon_removed_automatic_full_discount_completed' => 'Cupão removido. Um desconto automático restante de 100% manteve o total final em zero e concluiu o pagamento automaticamente.',
+    'full_discount_no_payment_required' => 'Não é necessário efetuar qualquer pagamento.',
+    'full_discount_registration_confirmed' => 'O desconto de 100% reduziu o total final a zero. Este pagamento está concluído e a inscrição ou submissão foi confirmada.',
+    'full_discount_settlement_not_safe' => 'O pagamento de valor zero não pode ser concluído automaticamente porque já existe uma transação em curso ou o pagamento está bloqueado.',
+    'full_discount_total_not_zero' => 'O pagamento não pôde ser concluído como desconto integral porque o total persistido não é zero.',
+
 ];

@@ -70,3 +70,13 @@ PaypalPayment 1.1.0 does not persist a checkout-start marker before redirect. A 
 - The production database driver and exact PHP runtime were not supplied.
 - Composer and package-network access were unavailable in the build container, so `composer audit` was **NOT RUN**, not passed.
 - PHPStan/Psalm and full PHPUnit/Pest integration against the complete Leconfe vendor tree were not executable in the available container.
+
+## Zero-value payment settlement
+
+- Settlement is allowed only when the calculated and persisted totals are exactly zero.
+- Negative totals are rejected.
+- The Payment row is locked and `PaymentSafety` rejects paid, initiated, or PayPal-metadata-bearing payments.
+- The plugin calls Leconfe's native `fulfillQueued()` and never fabricates PayPal identifiers.
+- `full_discount` is recorded as the payment method; `gateway_required` is false in plugin metadata.
+- Payment-required notifications are suppressed only after the same Payment is already paid through `full_discount`.
+- The confirmation notification is scheduled after commit to avoid notifying on a rolled-back transaction.

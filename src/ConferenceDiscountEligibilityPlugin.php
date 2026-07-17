@@ -12,6 +12,7 @@ use App\Models\Payment;
 use App\Models\User;
 use App\Panel\ScheduledConference\Pages\ParticipantRegistration;
 use ConferenceDiscountEligibility\Managers\DiscountAwarePaymentManager;
+use ConferenceDiscountEligibility\Listeners\SuppressPaymentRequiredForFullDiscount;
 use ConferenceDiscountEligibility\Livewire\CouponRedemption;
 use ConferenceDiscountEligibility\Models\ConferenceDiscountCoupon;
 use ConferenceDiscountEligibility\Models\ConferenceDiscountDomain;
@@ -39,6 +40,8 @@ use Filament\Infolists\Components\ViewEntry;
 use Filament\Panel;
 use Filament\Support\Facades\FilamentView;
 use Filament\View\PanelsRenderHook;
+use Illuminate\Notifications\Events\NotificationSending;
+use Illuminate\Support\Facades\Event;
 use Livewire\Livewire;
 
 final class ConferenceDiscountEligibilityPlugin extends Plugin
@@ -65,6 +68,7 @@ final class ConferenceDiscountEligibilityPlugin extends Plugin
         Meta::observe(MetaObserver::class);
 
         Livewire::component('conference-discount-coupon-redemption', CouponRedemption::class);
+        Event::listen(NotificationSending::class, SuppressPaymentRequiredForFullDiscount::class);
 
         $this->registerPaymentDetailHook();
         $this->registerRegistrationPreviewHook();

@@ -61,7 +61,7 @@ final class CouponRedemption extends Component
 
         $notification = Notification::make()->title(__("ConferenceDiscountEligibility::messages.{$result->message}"));
         match ($result->status) {
-            'applied', 'already_applied' => $notification->success(),
+            'applied', 'already_applied', 'completed' => $notification->success(),
             'not_selected', 'locked' => $notification->warning(),
             default => $notification->danger(),
         };

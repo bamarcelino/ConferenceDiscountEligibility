@@ -169,4 +169,11 @@ return [
     'coupon_status_revoked' => 'Revocado',
     'type_coupon' => 'Cupón',
 
+    'coupon_applied_payment_completed' => 'Cupón aplicado. El total final es cero, por lo que no se requiere pasarela de pago y el pago se completó automáticamente.',
+    'coupon_removed_automatic_full_discount_completed' => 'Cupón eliminado. Un descuento automático restante del 100 % mantuvo el total final en cero y completó el pago automáticamente.',
+    'full_discount_no_payment_required' => 'No se requiere ningún pago.',
+    'full_discount_registration_confirmed' => 'El descuento del 100 % redujo el total final a cero. Este pago está completado y la inscripción o el envío ha quedado confirmado.',
+    'full_discount_settlement_not_safe' => 'El pago de valor cero no puede completarse automáticamente porque ya existe una transacción en curso o el pago está bloqueado.',
+    'full_discount_total_not_zero' => 'El pago no pudo completarse como descuento total porque el importe guardado no es cero.',
+
 ];

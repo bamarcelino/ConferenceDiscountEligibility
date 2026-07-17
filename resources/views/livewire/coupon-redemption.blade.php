@@ -32,6 +32,14 @@
         </div>
     @endif
 
+
+    @if ($payment->isPaid() && (string) $payment->payment_method === \ConferenceDiscountEligibility\Support\FullDiscountPolicy::PAYMENT_METHOD)
+        <div class="rounded-lg border border-success-200 bg-success-50 p-4 text-sm text-success-800 dark:border-success-700 dark:bg-success-950/30 dark:text-success-200">
+            <div class="font-medium">{{ __('ConferenceDiscountEligibility::messages.full_discount_no_payment_required') }}</div>
+            <p class="mt-1">{{ __('ConferenceDiscountEligibility::messages.full_discount_registration_confirmed') }}</p>
+        </div>
+    @endif
+
     @if ($canModify)
         <form wire:submit="apply" class="space-y-3">
             <div>

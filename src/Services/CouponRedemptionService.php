@@ -11,6 +11,7 @@ use ConferenceDiscountEligibility\Enums\EligibilityType;
 use ConferenceDiscountEligibility\Models\ConferenceDiscountCoupon;
 use ConferenceDiscountEligibility\Models\ConferenceDiscountCouponRedemption;
 use ConferenceDiscountEligibility\Models\ConferenceDiscountPaymentSnapshot;
+use ConferenceDiscountEligibility\Support\FullDiscountPolicy;
 use ConferenceDiscountEligibility\Support\Money;
 use ConferenceDiscountEligibility\Support\PaymentSafety;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +23,7 @@ final class CouponRedemptionService
         private readonly PaymentDiscountService $discounts,
         private readonly SnapshotService $snapshots,
         private readonly AuditLogger $auditLogger,
+        private readonly FullDiscountSettlementService $fullDiscountSettlement,
     ) {}
 
     public function apply(Payment $payment, string $code): CouponApplicationResult
@@ -189,10 +191,22 @@ final class CouponRedemptionService
                 origin: 'payment_coupon_form',
             );
 
+            $settled = $this->fullDiscountSettlement->settleIfZero(
+                $locked,
+                $prepared->calculation->finalTotalMinor,
+                $currency,
+                'coupon_redemption',
+                $locked->user_id ? (int) $locked->user_id : null,
+            );
+            $completedByFullDiscount = $settled->isPaid()
+                && (string) $settled->payment_method === FullDiscountPolicy::PAYMENT_METHOD;
+
             return new CouponApplicationResult(
-                $locked->refresh(),
-                $alreadyApplied ? 'already_applied' : 'applied',
-                $alreadyApplied ? 'coupon_already_applied' : 'coupon_applied_successfully',
+                $settled,
+                $completedByFullDiscount ? 'completed' : ($alreadyApplied ? 'already_applied' : 'applied'),
+                $completedByFullDiscount
+                    ? 'coupon_applied_payment_completed'
+                    : ($alreadyApplied ? 'coupon_already_applied' : 'coupon_applied_successfully'),
                 ! $alreadyApplied,
                 true,
             );
@@ -260,10 +274,20 @@ final class CouponRedemptionService
                 origin: 'payment_coupon_form',
             );
 
+            $settled = $this->fullDiscountSettlement->settleIfZero(
+                $locked,
+                $prepared->calculation->finalTotalMinor,
+                $currency,
+                'coupon_removed',
+                $locked->user_id ? (int) $locked->user_id : null,
+            );
+
             return new CouponApplicationResult(
-                $locked->refresh(),
+                $settled,
                 'removed',
-                'coupon_removed_successfully',
+                $settled->isPaid()
+                    ? 'coupon_removed_automatic_full_discount_completed'
+                    : 'coupon_removed_successfully',
                 true,
                 false,
             );

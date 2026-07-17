@@ -95,3 +95,19 @@ Use Preview first, then Dry Run. Duplicate strategies are `ignore`, `update`, an
 Completed payments are never changed. Unpaid recalculation is explicit and defaults off because PaypalPayment 1.1.0 does not persist a checkout-start marker before redirect. Confirm no PayPal checkout is open before recalculating.
 
 The result reports matched, discounted, unchanged, skipped, paid, failed, identity-rejected domain matches, and matches accepted through confirmed authorship. Candidate searches include unpaid participant and submission payments.
+
+## 100% discounts and zero-value completion
+
+When the selected automatic rule or coupon reduces the **complete final Payment total** to exactly zero, the plugin completes the Payment automatically through Leconfe's native payment manager:
+
+- `amount` remains `0.00`;
+- `paid_at` is recorded;
+- `payment_method` is `full_discount`;
+- no PayPal checkout is created;
+- a reserved coupon is consumed immediately;
+- invoice, receipt, Payment Detail, snapshot, report, and audit records remain available;
+- the native Payment Confirmed notification is sent after the database transaction commits.
+
+If the discount scope is **Base fee only** and payable add-ons remain, the Payment stays pending and PayPal receives only the positive remainder. Example: base fee EUR 25.00, 100% base discount, EUR 5.00 add-on - final payable total EUR 5.00.
+
+A zero-value completed Payment cannot have its coupon removed or be recalculated. Completed payments are never repriced automatically.

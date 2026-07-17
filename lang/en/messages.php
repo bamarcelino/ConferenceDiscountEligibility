@@ -169,4 +169,11 @@ return [
     'coupon_status_revoked' => 'Revoked',
     'type_coupon' => 'Coupon',
 
+    'coupon_applied_payment_completed' => 'Coupon applied. The final total is zero, so no payment gateway is required and the payment was completed automatically.',
+    'coupon_removed_automatic_full_discount_completed' => 'Coupon removed. A remaining automatic 100% discount kept the final total at zero and completed the payment automatically.',
+    'full_discount_no_payment_required' => 'No payment is required.',
+    'full_discount_registration_confirmed' => 'The 100% discount reduced the final total to zero. This payment is completed and the registration or submission is confirmed.',
+    'full_discount_settlement_not_safe' => 'The zero-value payment cannot be completed automatically because a payment transaction is already in progress or the payment is locked.',
+    'full_discount_total_not_zero' => 'The payment could not be completed as a full discount because its persisted total is not zero.',
+
 ];

@@ -2,4 +2,4 @@ name: "Conference Discount Eligibility"
 folder: ConferenceDiscountEligibility
 author: "Scientia International"
 description: "Applies scheduled-conference eligibility discounts and payment-page coupons to eligible users while preserving Leconfe's official PayPal payment flow."
-version: "1.2.0"
+version: "1.2.1"
