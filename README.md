@@ -18,11 +18,11 @@
 
 ## Package choice
 
-Use `ConferenceDiscountEligibility-1.0.0.zip` in Leconfe's **Upload Plugin** action. Leconfe 1.4.6 accepts ZIP packages only. The `.tar.gz` is supplied as a requested supplemental distribution artifact and is not the panel-upload file.
+Use `ConferenceDiscountEligibility-1.0.1.zip` in Leconfe's **Upload Plugin** action. Leconfe 1.4.6 accepts ZIP packages only. The `.tar.gz` is supplied as a requested supplemental distribution artifact and is not the panel-upload file.
 
 ## Validation status
 
-The isolated calculation/source-contract suite passed **42/42** scenarios, the entrypoint/signature smoke test passed, all **92** PHP/Blade files passed `php -l`, and the runtime-file secret scan passed. The full Leconfe panel, database migrations, PHPUnit suite, Composer audit, and PayPal Sandbox flow could not be executed in the supplied environment because the complete deployment/vendor tree, production database/runtime details, Composer, and Sandbox credentials were not available. See `VALIDATION_REPORT.md` before production deployment.
+The isolated calculation/source-contract suite passed **48/48** scenarios, the entrypoint/signature smoke test passed, all **94** PHP/Blade files passed `php -l`, and the runtime-file secret scan passed. The full Leconfe panel, database migrations, PHPUnit suite, Composer audit, and PayPal Sandbox flow could not be executed in the supplied environment because the complete deployment/vendor tree, production database/runtime details, Composer, and Sandbox credentials were not available. See `VALIDATION_REPORT.md` before production deployment.
 
 ## Documentation
 
@@ -33,3 +33,7 @@ The isolated calculation/source-contract suite passed **42/42** scenarios, the e
 - `SECURITY.md`
 - `VALIDATION_REPORT.md`
 - `CHANGELOG.md`
+
+## 1.0.1 diagnostic hotfix
+
+Version 1.0.1 preserves the 1.0.0 schema and adds visible recalculation statistics, safe failure logging, and a corrected Audit Log detail view. A direct entitlement is bound to the exact `users.id`; email addresses that differ by punctuation represent different accounts. Institutional-domain rules continue to require `email_verified_at`.

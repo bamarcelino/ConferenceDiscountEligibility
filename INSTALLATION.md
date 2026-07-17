@@ -11,7 +11,7 @@
 
 1. Back up the Leconfe database and plugin directory.
 2. In the Scheduled Conference panel, open Plugin Management.
-3. Upload **`ConferenceDiscountEligibility-1.0.0.zip`**.
+3. Upload **`ConferenceDiscountEligibility-1.0.1.zip`**.
 4. Confirm that the detected folder is `ConferenceDiscountEligibility`.
 5. Enable the plugin for the intended scheduled conference.
 6. Reload the panel. The plugin boot installer creates its tables idempotently.

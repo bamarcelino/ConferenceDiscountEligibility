@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace ConferenceDiscountEligibility\Panel\ScheduledConference\Resources;
 
 use ConferenceDiscountEligibility\Enums\EligibilityType;
-use ConferenceDiscountEligibility\Jobs\RecalculateEligibleUnpaidPayments;
 use ConferenceDiscountEligibility\Models\ConferenceDiscountEntitlement;
 use ConferenceDiscountEligibility\Panel\ScheduledConference\Resources\EmailEntitlementResource\Pages;
 use ConferenceDiscountEligibility\Services\Authorization;
+use ConferenceDiscountEligibility\Services\RecalculationCoordinator;
 use ConferenceDiscountEligibility\Services\SettingsRepository;
 use ConferenceDiscountEligibility\Support\Percentage;
+use ConferenceDiscountEligibility\Support\RecalculationFeedback;
 use Filament\Forms;
 use Filament\Forms\Form;
-use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -62,8 +62,8 @@ final class EmailEntitlementResource extends Resource
                     ->visible(fn (ConferenceDiscountEntitlement $record) => $record->user_id !== null)
                     ->form([Forms\Components\Toggle::make('notify')->label(__('ConferenceDiscountEligibility::messages.notify_user'))])
                     ->action(function (ConferenceDiscountEntitlement $record, array $data): void {
-                        RecalculateEligibleUnpaidPayments::dispatchSync('entitlement', (int) $record->getKey(), (bool) ($data['notify'] ?? false));
-                        Notification::make()->success()->title(__('ConferenceDiscountEligibility::messages.recalculation_queued'))->send();
+                        $stats = app(RecalculationCoordinator::class)->run('entitlement', (int) $record->getKey(), (bool) ($data['notify'] ?? false));
+                        RecalculationFeedback::send($stats);
                     }),
                 Tables\Actions\DeleteAction::make(),
             ])->defaultSort('created_at', 'desc');

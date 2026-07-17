@@ -102,4 +102,15 @@ return [
     'final_registration_fee' => 'Importe final de inscripción',
     'add_on_preview_note' => 'Esta vista previa muestra la tarifa base. Los complementos solo reciben descuento cuando la conferencia habilita explícitamente sus claves.',
     'status' => 'Estado',
+    'result' => 'Resultado',
+    'old_values' => 'Valores anteriores',
+    'new_values' => 'Valores nuevos',
+    'context' => 'Contexto',
+    'recalculation_applied' => 'Descuento aplicado en el recálculo',
+    'recalculation_no_change' => 'Recálculo completado sin modificar pagos',
+    'recalculation_summary' => 'Coincidencias: :matched; con descuento: :discounted; sin cambios: :unchanged; omitidos: :skipped; ya pagados: :paid; fallos: :failed; coincidencias de dominio rechazadas por correo no verificado: :unverified.',
+    'recalculation_failed_detail' => 'El recálculo del pago falló. La excepción técnica se envió al registro de Laravel y su huella quedó registrada aquí.',
+    'no_matching_eligibility_rule' => 'No se encontró ninguna regla de elegibilidad coincidente.',
+    'exact_user_warning' => 'La elegibilidad se vincula al ID exacto del usuario mostrado en la opción seleccionada. Los nombres o correos similares, incluso direcciones que solo difieren por un punto, son cuentas distintas.',
+
 ];

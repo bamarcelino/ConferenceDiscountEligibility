@@ -102,4 +102,15 @@ return [
     'final_registration_fee' => 'Valor final da inscrição',
     'add_on_preview_note' => 'Esta prévia mostra a taxa-base de inscrição. Adicionais somente recebem desconto quando a conferência habilita explicitamente suas chaves.',
     'status' => 'Status',
+    'result' => 'Resultado',
+    'old_values' => 'Valores anteriores',
+    'new_values' => 'Novos valores',
+    'context' => 'Contexto',
+    'recalculation_applied' => 'Desconto aplicado no recálculo',
+    'recalculation_no_change' => 'Recálculo concluído sem alterar pagamentos',
+    'recalculation_summary' => 'Correspondentes: :matched; com desconto: :discounted; sem alteração: :unchanged; ignorados: :skipped; já pagos: :paid; falhas: :failed; correspondências de domínio rejeitadas por e-mail não verificado: :unverified.',
+    'recalculation_failed_detail' => 'O recálculo do pagamento falhou. A exceção técnica foi enviada ao log do Laravel e sua impressão digital foi registrada aqui.',
+    'no_matching_eligibility_rule' => 'Nenhuma regra de elegibilidade correspondente foi encontrada.',
+    'exact_user_warning' => 'A elegibilidade é vinculada ao ID exato do usuário mostrado na opção selecionada. Nomes ou e-mails semelhantes, inclusive endereços que diferem apenas por um ponto, são contas diferentes.',
+
 ];

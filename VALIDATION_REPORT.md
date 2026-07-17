@@ -1,11 +1,11 @@
-# VALIDATION REPORT — Conference Discount Eligibility 1.0.0
+# VALIDATION REPORT — Conference Discount Eligibility 1.0.1
 
 ## Identification
 
 | Item | Result |
 |---|---|
-| Report date | 2026-07-16 |
-| Plugin | Conference Discount Eligibility 1.0.0 |
+| Report date | 2026-07-17 |
+| Plugin | Conference Discount Eligibility 1.0.1 |
 | Target Leconfe | 1.4.6, official tag commit `f7e369d` |
 | Target Paypal Payment plugin | 1.1.0, official tag commit `6b2a0fc` |
 | Application PHP requirement | `^8.1` from the target release; exact production PHP runtime not supplied |
@@ -17,6 +17,18 @@
 | Production database | Not supplied |
 | Validation database | No PDO database driver available in the build container |
 | PayPal Sandbox | **PENDING EXTERNAL CREDENTIALS** |
+
+
+## Production evidence that triggered 1.0.1
+
+The 1.0.0 package was uploaded and activated successfully in the target Leconfe 1.4.6 installation. The Scheduled Conference navigation, settings, entitlement/domain resources, audit list, and participant-payment interception were observed in the real panel. A test participant payment produced `discount_not_applied`, confirming the custom `PaymentManager` binding executed. The production test also exposed four operational issues:
+
+1. the direct entitlement shown in the panel belonged to a different account (`brunomarcelino@claec.org`) than the participant payment (`bruno.marcelino@claec.org`);
+2. domain recalculation did not alter the payment, but the exact rejection or failure reason was hidden by the 1.0.0 Audit Log detail error;
+3. the Audit Log record detail route returned HTTP 500, preventing the administrator from viewing the rejection context;
+4. synchronous recalculation displayed a generic completion message even when zero payments were changed.
+
+Version 1.0.1 fixes items 3 and 4, makes items 1 and 2 explicit in the panel, and makes edit-form recalculation toggles operational. The updated package has not yet been uploaded to the target panel, so full runtime verification of the hotfix remains pending.
 
 ## Commands executed
 
@@ -30,29 +42,29 @@ php scripts/secret-scan.php
 Package validation commands executed:
 
 ```text
-php scripts/validate-package.php ConferenceDiscountEligibility-1.0.0.zip
-php scripts/validate-package.php ConferenceDiscountEligibility-1.0.0.tar.gz
-unzip -t ConferenceDiscountEligibility-1.0.0.zip
-unzip -t ConferenceDiscountEligibility-1.0.0-source.zip
-tar -tzf ConferenceDiscountEligibility-1.0.0.tar.gz
+php scripts/validate-package.php ConferenceDiscountEligibility-1.0.1.zip
+php scripts/validate-package.php ConferenceDiscountEligibility-1.0.1.tar.gz
+unzip -t ConferenceDiscountEligibility-1.0.1.zip
+unzip -t ConferenceDiscountEligibility-1.0.1-source.zip
+tar -tzf ConferenceDiscountEligibility-1.0.1.tar.gz
 sha256sum <artifacts>
 ```
 
-Both package-structure validations passed, both ZIP integrity checks passed, the tarball listing succeeded, and extraction confirmed exactly one `ConferenceDiscountEligibility/` root with `index.php` and `index.yaml` at that level. The extracted source package was retested: 42/42 scenarios passed, the entrypoint/signature smoke test passed, 92 files passed lint, and the secret scan passed.
+Both package-structure validations passed, both ZIP integrity checks passed, the tarball listing succeeded, and extraction confirmed exactly one `ConferenceDiscountEligibility/` root with `index.php` and `index.yaml` at that level. The extracted source package was retested: 48/48 scenarios passed, the entrypoint/signature smoke test passed, 94 files passed lint, and the secret scan passed.
 
 ## Automated test result
 
 | Suite/check | Executed | Result |
 |---|---:|---|
-| Standalone unit/source-contract scenarios | Yes | **42 passed, 0 failed, 0 skipped** |
+| Standalone unit/source-contract scenarios | Yes | **48 passed, 0 failed, 0 skipped** |
 | Entrypoint and PaymentManager signature smoke test | Yes | Passed |
-| PHP/Blade syntax lint | Yes | **92 files, 0 failed** |
+| PHP/Blade syntax lint | Yes | **94 files, 0 failed** |
 | Runtime-file credential/secret scan | Yes | Passed |
 | PHPUnit/Pest suite | No | Authored PHPUnit tests are included, but PHPUnit/Composer were unavailable |
 | Composer audit | No | **NOT RUN** — Composer and package-network access were unavailable |
 | PHPStan/Psalm | No | **NOT RUN** — tools and full framework dependency graph were unavailable |
 
-The 42 executed scenarios cover the requested matrix at the isolated logic/source-contract level: no-discount behavior, 40% and 30%, pending email linking, exact and subdomain matching, malicious similar domains, precedence, inactive/future/expired rules, conference isolation, participant/presenter-category coverage, base/add-on scope, EUR and rounding, zero value, invalid percentages, unpaid recalculation controls, paid-payment protection, CSV validation and duplicates, authorization/source scoping, invoice/receipt itemization contract, Payment Detail/report hooks, PayPal amount delegation, success/cancel responsibility boundaries, duplicate protection, and idempotent schema/snapshot design.
+The 48 executed scenarios cover the requested matrix at the isolated logic/source-contract level: no-discount behavior, 40% and 30%, pending email linking, exact and subdomain matching, malicious similar domains, precedence, inactive/future/expired rules, conference isolation, participant/presenter-category coverage, base/add-on scope, EUR and rounding, zero value, invalid percentages, unpaid recalculation controls, paid-payment protection, CSV validation and duplicates, authorization/source scoping, invoice/receipt itemization contract, Payment Detail/report hooks, PayPal amount delegation, success/cancel responsibility boundaries, duplicate protection, and idempotent schema/snapshot design.
 
 Machine-readable output is included at `tests/results/standalone.json` in the source package.
 
@@ -111,4 +123,4 @@ The package is a **staging validation candidate**, not an honestly certified pro
 
 ## Checksums
 
-The authoritative SHA-256 values are generated after archive creation in the external file `ConferenceDiscountEligibility-1.0.0.sha256`. Embedding an archive's final checksum inside that same archive would change the archive and invalidate the value.
+The authoritative SHA-256 values are generated after archive creation in the external file `ConferenceDiscountEligibility-1.0.1.sha256`. Embedding an archive's final checksum inside that same archive would change the archive and invalidate the value.

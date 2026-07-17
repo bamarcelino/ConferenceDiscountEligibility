@@ -49,12 +49,13 @@ final class UnpaidPaymentRecalculator
             $locked->setMeta('additional_items', $prepared->additionalItems);
             $snapshot = $this->snapshots->record($locked, $prepared, $origin);
             $this->auditLogger->log(
-                action: 'payment_recalculated',
+                action: $prepared->selection->hasDiscount() ? 'payment_recalculated' : 'payment_recalculated_without_discount',
                 scheduledConferenceId: (int) $locked->scheduled_conference_id,
                 auditable: $locked,
                 affectedUserId: $locked->user_id,
                 oldValues: $oldSnapshot?->toArray(),
                 newValues: $snapshot->toArray(),
+                context: ['evaluated_rules' => $prepared->selection->evaluatedAsArray()],
                 origin: $origin,
             );
             return $locked->refresh();

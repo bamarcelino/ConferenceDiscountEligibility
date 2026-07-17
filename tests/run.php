@@ -9,6 +9,7 @@ use ConferenceDiscountEligibility\Enums\DiscountScope;
 use ConferenceDiscountEligibility\Enums\EligibilityType;
 use ConferenceDiscountEligibility\Services\DiscountCalculator;
 use ConferenceDiscountEligibility\Services\EligibilitySelector;
+use ConferenceDiscountEligibility\Support\AuditValueFormatter;
 use ConferenceDiscountEligibility\Support\CsvSanitizer;
 use ConferenceDiscountEligibility\Support\DomainMatcher;
 use ConferenceDiscountEligibility\Support\EmailNormalizer;
@@ -199,6 +200,44 @@ $tests['41 duplicate attempt protection'] = function () use ($contains): void {
 $tests['42 idempotent snapshot and schema installation'] = function () use ($contains): void {
     $contains('src/Services/SchemaInstaller.php', 'isInstalled()');
     $contains('src/Services/SnapshotService.php', "['payment_id' => \$payment->getKey()]");
+};
+
+$tests['43 recalculation reports actual outcome'] = function () use ($contains): void {
+    $contains('src/Services/RecalculationCoordinator.php', "'discounted' => 0");
+    $contains('src/Support/RecalculationFeedback.php', 'recalculation_summary');
+    $contains('src/Services/RecalculationCoordinator.php', 'unverified_domain_matches');
+};
+$tests['44 recalculation failures are no longer swallowed silently'] = function () use ($contains): void {
+    $contains('src/Services/RecalculationCoordinator.php', 'report($exception)');
+    $contains('src/Services/RecalculationCoordinator.php', "action: 'payment_recalculation_failed'");
+};
+$tests['45 audit detail uses scalar JSON states'] = function () use ($contains, $notContains): void {
+    $contains('src/Panel/ScheduledConference/Resources/AuditLogResource.php', 'old_values_pretty');
+    $contains('src/Panel/ScheduledConference/Resources/AuditLogResource.php', 'diagnostic_summary');
+    $notContains('src/Panel/ScheduledConference/Resources/AuditLogResource.php', "TextEntry::make('old_values')->formatStateUsing");
+};
+
+$tests['46 audit formatter renders nested payloads safely'] = function () use ($assert, $assertSame): void {
+    $rendered = AuditValueFormatter::json(['evaluated_rules' => [['type' => 'domain', 'eligible' => false]]]);
+    $assert(str_contains($rendered, '"evaluated_rules"'));
+    $assert(str_contains($rendered, '"eligible": false'));
+    $assertSame('—', AuditValueFormatter::json(null));
+};
+$tests['47 audit formatter substitutes invalid UTF-8'] = function () use ($assert): void {
+    $rendered = AuditValueFormatter::json(['message' => "bad\xB1text"]);
+    $assert($rendered !== '—');
+    $assert(str_contains($rendered, '"message"'));
+};
+$tests['48 edit forms honor recalculation toggles'] = function () use ($contains): void {
+    foreach ([
+        'src/Panel/ScheduledConference/Resources/IndividualEntitlementResource/Pages/EditIndividualEntitlement.php',
+        'src/Panel/ScheduledConference/Resources/EmailEntitlementResource/Pages/EditEmailEntitlement.php',
+        'src/Panel/ScheduledConference/Resources/InstitutionalDomainResource/Pages/EditInstitutionalDomain.php',
+    ] as $path) {
+        $contains($path, 'protected function afterSave(): void');
+        $contains($path, 'RecalculationCoordinator::class');
+        $contains($path, 'RecalculationFeedback::send');
+    }
 };
 
 $results = [];

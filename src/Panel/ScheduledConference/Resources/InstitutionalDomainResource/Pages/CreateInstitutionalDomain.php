@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace ConferenceDiscountEligibility\Panel\ScheduledConference\Resources\InstitutionalDomainResource\Pages;
 
-use ConferenceDiscountEligibility\Jobs\RecalculateEligibleUnpaidPayments;
 use ConferenceDiscountEligibility\Panel\ScheduledConference\Resources\InstitutionalDomainResource;
+use ConferenceDiscountEligibility\Services\RecalculationCoordinator;
+use ConferenceDiscountEligibility\Support\RecalculationFeedback;
 use Filament\Resources\Pages\CreateRecord;
 
 final class CreateInstitutionalDomain extends CreateRecord
@@ -25,6 +26,9 @@ final class CreateInstitutionalDomain extends CreateRecord
 
     protected function afterCreate(): void
     {
-        if ($this->recalculate) { RecalculateEligibleUnpaidPayments::dispatchSync('domain', (int) $this->record->getKey(), $this->notify); }
+        if ($this->recalculate) {
+            $stats = app(RecalculationCoordinator::class)->run('domain', (int) $this->record->getKey(), $this->notify);
+            RecalculationFeedback::send($stats);
+        }
     }
 }

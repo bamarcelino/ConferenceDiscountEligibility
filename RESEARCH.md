@@ -171,7 +171,7 @@ Leconfe stores decimal amounts and its PayPal plugin formats two decimal places.
 - final decimal values are produced only at the Leconfe boundary;
 - EUR is fully supported and covered by tests.
 
-Currencies whose PayPal representation is not two decimal places are rejected for discount application in 1.0.0 rather than silently rounded incorrectly.
+Currencies whose PayPal representation is not two decimal places are rejected for discount application in calculation version 1 rather than silently rounded incorrectly.
 
 ## Extension-point map
 

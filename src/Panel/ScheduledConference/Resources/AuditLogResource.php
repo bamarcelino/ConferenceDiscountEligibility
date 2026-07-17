@@ -7,6 +7,7 @@ namespace ConferenceDiscountEligibility\Panel\ScheduledConference\Resources;
 use ConferenceDiscountEligibility\Models\ConferenceDiscountAuditLog;
 use ConferenceDiscountEligibility\Panel\ScheduledConference\Resources\AuditLogResource\Pages;
 use ConferenceDiscountEligibility\Services\Authorization;
+use ConferenceDiscountEligibility\Support\AuditValueFormatter;
 use Filament\Infolists;
 use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
@@ -34,6 +35,12 @@ final class AuditLogResource extends Resource
             Tables\Columns\TextColumn::make('affectedUser.email')->label(__('ConferenceDiscountEligibility::messages.affected_user'))->placeholder('—'),
             Tables\Columns\TextColumn::make('auditable_type')->label(__('ConferenceDiscountEligibility::messages.object'))->formatStateUsing(fn ($state) => class_basename((string) $state))->placeholder('—'),
             Tables\Columns\TextColumn::make('origin')->label(__('ConferenceDiscountEligibility::messages.origin'))->badge(),
+            Tables\Columns\TextColumn::make('diagnostic_summary')
+                ->label(__('ConferenceDiscountEligibility::messages.result'))
+                ->getStateUsing(static fn (ConferenceDiscountAuditLog $record): string => self::summary($record))
+                ->wrap()
+                ->limit(140)
+                ->tooltip(static fn (ConferenceDiscountAuditLog $record): string => self::summary($record)),
         ])->filters([
             Tables\Filters\SelectFilter::make('action')->options(fn () => ConferenceDiscountAuditLog::query()->where('scheduled_conference_id', app()->getCurrentScheduledConference()?->getKey())->distinct()->orderBy('action')->pluck('action','action')->all()),
         ])->actions([Tables\Actions\ViewAction::make()])->defaultSort('created_at', 'desc');
@@ -49,22 +56,87 @@ final class AuditLogResource extends Resource
                 Infolists\Components\TextEntry::make('affectedUser.email')->placeholder('—'),
                 Infolists\Components\TextEntry::make('origin'),
                 Infolists\Components\TextEntry::make('ip_hash')->placeholder('—')->copyable(),
-                Infolists\Components\TextEntry::make('old_values')->formatStateUsing(fn ($state) => json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE))->columnSpanFull(),
-                Infolists\Components\TextEntry::make('new_values')->formatStateUsing(fn ($state) => json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE))->columnSpanFull(),
-                Infolists\Components\TextEntry::make('context')->formatStateUsing(fn ($state) => json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE))->columnSpanFull(),
+                Infolists\Components\TextEntry::make('diagnostic_summary')
+                    ->label(__('ConferenceDiscountEligibility::messages.result'))
+                    ->getStateUsing(static fn (ConferenceDiscountAuditLog $record): string => self::summary($record))
+                    ->columnSpanFull(),
+                Infolists\Components\TextEntry::make('old_values_pretty')
+                    ->label(__('ConferenceDiscountEligibility::messages.old_values'))
+                    ->getStateUsing(static fn (ConferenceDiscountAuditLog $record): string => AuditValueFormatter::json($record->old_values))
+                    ->copyable()
+                    ->columnSpanFull(),
+                Infolists\Components\TextEntry::make('new_values_pretty')
+                    ->label(__('ConferenceDiscountEligibility::messages.new_values'))
+                    ->getStateUsing(static fn (ConferenceDiscountAuditLog $record): string => AuditValueFormatter::json($record->new_values))
+                    ->copyable()
+                    ->columnSpanFull(),
+                Infolists\Components\TextEntry::make('context_pretty')
+                    ->label(__('ConferenceDiscountEligibility::messages.context'))
+                    ->getStateUsing(static fn (ConferenceDiscountAuditLog $record): string => AuditValueFormatter::json($record->context))
+                    ->copyable()
+                    ->columnSpanFull(),
             ])->columns(2),
         ]);
     }
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->where('scheduled_conference_id', app()->getCurrentScheduledConference()?->getKey() ?? -1)->with(['actor','affectedUser']);
+        return parent::getEloquentQuery()
+            ->where('scheduled_conference_id', app()->getCurrentScheduledConference()?->getKey() ?? -1)
+            ->with(['actor','affectedUser']);
     }
 
     public static function canViewAny(): bool { return app(Authorization::class)->canManage(); }
+    public static function canView($record): bool
+    {
+        return app(Authorization::class)->canManage()
+            && (int) $record->scheduled_conference_id === (int) app()->getCurrentScheduledConference()?->getKey();
+    }
     public static function canCreate(): bool { return false; }
     public static function canEdit($record): bool { return false; }
     public static function canDelete($record): bool { return false; }
     public static function canDeleteAny(): bool { return false; }
     public static function getPages(): array { return ['index' => Pages\ListAuditLogs::route('/'), 'view' => Pages\ViewAuditLog::route('/{record}')]; }
+
+    private static function summary(ConferenceDiscountAuditLog $record): string
+    {
+        if (in_array($record->action, ['discount_not_applied', 'payment_recalculated_without_discount'], true)) {
+            $rules = is_array($record->context['evaluated_rules'] ?? null)
+                ? $record->context['evaluated_rules']
+                : [];
+            $parts = [];
+            foreach ($rules as $rule) {
+                if (! is_array($rule)) {
+                    continue;
+                }
+                $type = (string) ($rule['type'] ?? 'rule');
+                $id = (string) ($rule['id'] ?? '?');
+                $reason = (string) ($rule['rejection_reason'] ?? 'not_eligible');
+                $parts[] = "{$type} #{$id}: {$reason}";
+            }
+
+            return $parts !== []
+                ? implode('; ', $parts)
+                : __('ConferenceDiscountEligibility::messages.no_matching_eligibility_rule');
+        }
+
+        if ($record->action === 'rule_payment_recalculation_completed') {
+            $stats = is_array($record->new_values) ? $record->new_values : [];
+            return __('ConferenceDiscountEligibility::messages.recalculation_summary', [
+                'matched' => (int) ($stats['matched'] ?? 0),
+                'discounted' => (int) ($stats['discounted'] ?? $stats['recalculated'] ?? 0),
+                'unchanged' => (int) ($stats['unchanged'] ?? 0),
+                'skipped' => (int) ($stats['skipped'] ?? 0),
+                'paid' => (int) ($stats['paid'] ?? 0),
+                'failed' => (int) ($stats['failed'] ?? 0),
+                'unverified' => (int) ($stats['unverified_domain_matches'] ?? 0),
+            ]);
+        }
+
+        if ($record->action === 'payment_recalculation_failed') {
+            return __('ConferenceDiscountEligibility::messages.recalculation_failed_detail');
+        }
+
+        return '—';
+    }
 }

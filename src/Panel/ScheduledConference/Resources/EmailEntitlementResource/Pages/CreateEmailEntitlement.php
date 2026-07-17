@@ -6,9 +6,10 @@ namespace ConferenceDiscountEligibility\Panel\ScheduledConference\Resources\Emai
 
 use App\Models\User;
 use ConferenceDiscountEligibility\Enums\EligibilityType;
-use ConferenceDiscountEligibility\Jobs\RecalculateEligibleUnpaidPayments;
 use ConferenceDiscountEligibility\Panel\ScheduledConference\Resources\EmailEntitlementResource;
 use ConferenceDiscountEligibility\Services\EmailEntitlementLinker;
+use ConferenceDiscountEligibility\Services\RecalculationCoordinator;
+use ConferenceDiscountEligibility\Support\RecalculationFeedback;
 use Filament\Resources\Pages\CreateRecord;
 
 final class CreateEmailEntitlement extends CreateRecord
@@ -32,6 +33,9 @@ final class CreateEmailEntitlement extends CreateRecord
     {
         $user = User::query()->whereRaw('LOWER(TRIM(email)) = ?', [$this->record->normalized_email])->first();
         if ($user) { app(EmailEntitlementLinker::class)->link($user, (int) $this->record->scheduled_conference_id); $this->record->refresh(); }
-        if ($this->recalculate && $this->record->user_id) { RecalculateEligibleUnpaidPayments::dispatchSync('entitlement', (int) $this->record->getKey(), $this->notify); }
+        if ($this->recalculate && $this->record->user_id) {
+            $stats = app(RecalculationCoordinator::class)->run('entitlement', (int) $this->record->getKey(), $this->notify);
+            RecalculationFeedback::send($stats);
+        }
     }
 }

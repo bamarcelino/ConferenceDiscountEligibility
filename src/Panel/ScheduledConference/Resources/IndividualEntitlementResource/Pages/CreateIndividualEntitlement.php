@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace ConferenceDiscountEligibility\Panel\ScheduledConference\Resources\IndividualEntitlementResource\Pages;
 
 use ConferenceDiscountEligibility\Enums\EligibilityType;
-use ConferenceDiscountEligibility\Jobs\RecalculateEligibleUnpaidPayments;
 use ConferenceDiscountEligibility\Panel\ScheduledConference\Resources\IndividualEntitlementResource;
+use ConferenceDiscountEligibility\Services\RecalculationCoordinator;
+use ConferenceDiscountEligibility\Support\RecalculationFeedback;
 use Filament\Resources\Pages\CreateRecord;
 
 final class CreateIndividualEntitlement extends CreateRecord
@@ -28,6 +29,9 @@ final class CreateIndividualEntitlement extends CreateRecord
 
     protected function afterCreate(): void
     {
-        if ($this->recalculate) { RecalculateEligibleUnpaidPayments::dispatchSync('entitlement', (int) $this->record->getKey(), $this->notify); }
+        if ($this->recalculate) {
+            $stats = app(RecalculationCoordinator::class)->run('entitlement', (int) $this->record->getKey(), $this->notify);
+            RecalculationFeedback::send($stats);
+        }
     }
 }

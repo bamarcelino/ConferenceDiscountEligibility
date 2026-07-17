@@ -1,4 +1,4 @@
-# ARCHITECTURE — Conference Discount Eligibility 1.0.0
+# ARCHITECTURE — Conference Discount Eligibility 1.0.1
 
 ## Architectural goals
 

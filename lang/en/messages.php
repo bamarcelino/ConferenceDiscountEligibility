@@ -102,4 +102,15 @@ return [
     'final_registration_fee' => 'Final registration fee',
     'add_on_preview_note' => 'This preview shows the base registration fee. Add-ons are not discounted unless the conference explicitly enables eligible add-on keys.',
     'status' => 'Status',
+    'result' => 'Result',
+    'old_values' => 'Previous values',
+    'new_values' => 'New values',
+    'context' => 'Context',
+    'recalculation_applied' => 'Discount recalculation applied',
+    'recalculation_no_change' => 'Recalculation completed without changing a payment',
+    'recalculation_summary' => 'Matched: :matched; discounted: :discounted; unchanged: :unchanged; skipped: :skipped; already paid: :paid; failed: :failed; domain matches rejected for unverified email: :unverified.',
+    'recalculation_failed_detail' => 'The payment recalculation failed. The technical exception was sent to the Laravel log and its fingerprint was recorded here.',
+    'no_matching_eligibility_rule' => 'No matching eligibility rule was found.',
+    'exact_user_warning' => 'The entitlement is linked to the exact user ID shown in the selected option. Similar names or email addresses, including addresses that differ only by a dot, are different accounts.',
+
 ];

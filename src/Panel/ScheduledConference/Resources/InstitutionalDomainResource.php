@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace ConferenceDiscountEligibility\Panel\ScheduledConference\Resources;
 
-use ConferenceDiscountEligibility\Jobs\RecalculateEligibleUnpaidPayments;
 use ConferenceDiscountEligibility\Models\ConferenceDiscountDomain;
 use ConferenceDiscountEligibility\Panel\ScheduledConference\Resources\InstitutionalDomainResource\Pages;
 use ConferenceDiscountEligibility\Services\Authorization;
+use ConferenceDiscountEligibility\Services\RecalculationCoordinator;
 use ConferenceDiscountEligibility\Services\SettingsRepository;
 use ConferenceDiscountEligibility\Support\Percentage;
+use ConferenceDiscountEligibility\Support\RecalculationFeedback;
 use Filament\Forms;
 use Filament\Forms\Form;
-use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -61,8 +61,8 @@ final class InstitutionalDomainResource extends Resource
                 Tables\Actions\Action::make('recalculate')->label(__('ConferenceDiscountEligibility::messages.recalculate_unpaid'))->icon('heroicon-o-arrow-path')->requiresConfirmation()
                     ->form([Forms\Components\Toggle::make('notify')->label(__('ConferenceDiscountEligibility::messages.notify_user'))])
                     ->action(function (ConferenceDiscountDomain $record, array $data): void {
-                        RecalculateEligibleUnpaidPayments::dispatchSync('domain', (int) $record->getKey(), (bool) ($data['notify'] ?? false));
-                        Notification::make()->success()->title(__('ConferenceDiscountEligibility::messages.recalculation_queued'))->send();
+                        $stats = app(RecalculationCoordinator::class)->run('domain', (int) $record->getKey(), (bool) ($data['notify'] ?? false));
+                        RecalculationFeedback::send($stats);
                     }),
                 Tables\Actions\DeleteAction::make(),
             ])->defaultSort('created_at', 'desc');
