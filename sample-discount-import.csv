@@ -1,0 +1,4 @@
+email,discount_percentage,reason,valid_from,valid_until,notes
+member@example.edu,40,CLAEC active member,2026-01-01,2026-12-31,Approved membership
+researcher@partner.example,30,Institutional partner affiliate,2026-01-01,2026-12-31,Partner list
+pending.user@example.org,40,Individual approval,,,Pending account creation
