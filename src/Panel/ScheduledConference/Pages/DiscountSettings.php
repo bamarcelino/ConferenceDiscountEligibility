@@ -40,6 +40,7 @@ final class DiscountSettings extends Page implements HasForms
             'eligible_add_on_keys' => $record->eligible_add_on_keys ?? [],
             'recalculate_unpaid_default' => (bool) $record->recalculate_unpaid_default,
             'notify_on_recalculation' => (bool) $record->notify_on_recalculation,
+            'coupon_redemption_enabled' => (bool) $record->coupon_redemption_enabled,
             'csv_max_megabytes' => max(1, (int) ceil(((int) $record->csv_max_bytes) / 1048576)),
         ]);
     }
@@ -62,6 +63,7 @@ final class DiscountSettings extends Page implements HasForms
                 ->visible(fn (Forms\Get $get) => $get('discount_scope') === DiscountScope::BaseFeeAndEligibleAddOns->value),
             Forms\Components\Toggle::make('recalculate_unpaid_default')->label(__('ConferenceDiscountEligibility::messages.recalculate_default'))->helperText(__('ConferenceDiscountEligibility::messages.recalculate_warning')),
             Forms\Components\Toggle::make('notify_on_recalculation')->label(__('ConferenceDiscountEligibility::messages.notify_default')),
+            Forms\Components\Toggle::make('coupon_redemption_enabled')->label(__('ConferenceDiscountEligibility::messages.coupon_redemption_enabled'))->helperText(__('ConferenceDiscountEligibility::messages.coupon_redemption_enabled_help'))->default(true),
             Forms\Components\TextInput::make('csv_max_megabytes')->label(__('ConferenceDiscountEligibility::messages.csv_max_size'))->numeric()->integer()->minValue(1)->maxValue(20)->suffix('MB')->required(),
         ])->statePath('data')->columns(1);
     }
@@ -77,6 +79,7 @@ final class DiscountSettings extends Page implements HasForms
             'eligible_add_on_keys' => array_values(array_unique(array_filter(array_map('strval', $data['eligible_add_on_keys'] ?? [])))),
             'recalculate_unpaid_default' => (bool) ($data['recalculate_unpaid_default'] ?? false),
             'notify_on_recalculation' => (bool) ($data['notify_on_recalculation'] ?? false),
+            'coupon_redemption_enabled' => (bool) ($data['coupon_redemption_enabled'] ?? true),
             'csv_max_bytes' => (int) $data['csv_max_megabytes'] * 1048576,
         ]);
         $auditLogger->log('settings_updated', (int) $record->scheduled_conference_id, $record, oldValues: $old, newValues: $record->fresh()->toArray());

@@ -1,40 +1,54 @@
 # Conference Discount Eligibility
 
-`Conference Discount Eligibility` is a scheduled-conference-scoped plugin for **Leconfe 1.4.6**. It applies server-side discounts to eligible participant-registration and submission fees before the native `Payment` is created. The official **Paypal Payment 1.1.0** plugin remains responsible for checkout, PayPal return/cancellation handling, transaction metadata, `paid_at`, receipts, and the native payment lifecycle.
+`Conference Discount Eligibility` is a scheduled-conference-scoped plugin for **Leconfe 1.4.6**. It applies server-side automatic eligibility discounts and secure payment-page coupons to both native Leconfe fee types: Participant Payment and Submission Payment. The official **Paypal Payment 1.1.0** plugin remains the only PayPal gateway and remains responsible for checkout, return/cancellation processing, transaction metadata, `paid_at`, receipts, and the native payment lifecycle.
 
 ## Included capabilities
 
-- Direct eligibility by an existing Leconfe user.
+- Direct eligibility by existing Leconfe user.
 - Pending eligibility by exact email, with later linking to the real user ID.
 - Institutional-domain eligibility with boundary-safe exact/subdomain matching.
-- Per-domain identity policy:
-  - **Verified email only** — secure default;
-  - **Verified email or confirmed conference author** — explicit opt-in.
-- Confirmed-author fallback based on the exact user being either the owner of a submitted work or a linked submission participant with the `Author` role in the same scheduled conference.
+- Optional confirmed-author evidence for unverified institutional emails in the same scheduled conference.
 - CSV preview, dry run, validation, duplicate strategy, import report, and safe exports.
-- Highest-percentage non-cumulative selection.
+- Coupon Campaigns with automatically generated or administrator-defined codes.
+- Coupon percentage, reason, validity, global-use limit, per-user limit, native payment-type scope, and optional payment-fee restrictions.
+- Coupon entry directly on unpaid Participant Payment and Submission Payment pages before the payment gateway is opened.
+- Server-side coupon validation, attempt throttling, transactional reservation, release, replacement, and consumption.
+- Highest-percentage non-cumulative selection across automatic rules and coupons.
 - Integer minor-unit calculation and basis-point percentages.
-- Base-fee-only default for every supported payment type, with optional explicitly eligible add-ons.
-- Payment snapshot, evaluated-rule history, audit log, and safe unpaid recalculation.
-- Payment Detail discount/identity section and a dedicated Discount Payment Report.
+- Base-fee-only default, with optional explicitly eligible add-ons.
+- Payment snapshots, evaluated-rule history, audit log, safe unpaid recalculation, and coupon status tracking.
+- Payment Detail sections, invoice/receipt-compatible negative discount line, and Discount Payment Report.
 - English, Brazilian Portuguese, Portuguese, and Spanish translations.
-- No PayPal credentials, no PayPal reimplementation, and no core-file replacement.
+- No PayPal credentials, PayPal reimplementation, core-file replacement, or event-specific hardcoding.
 
-The self-assignable Leconfe `Author` account role alone is deliberately not treated as proof. Author fallback requires a concrete submission relationship in the current scheduled conference.
+The self-assignable Leconfe `Author` account role alone is not treated as proof. Confirmed-author fallback requires a concrete same-conference submission relationship.
+
+## Coupon security model
+
+- Full codes are normalized and keyed-hashed with the Laravel application key.
+- Only the hash and a masked hint are stored.
+- A generated or regenerated full code is displayed once to the administrator.
+- A coupon is reserved only when it wins against every other valid rule.
+- A lower second coupon cannot replace an already reserved higher coupon.
+- A coupon is consumed when Leconfe changes the payment to paid.
+- Coupon changes are blocked after payment activity or PayPal transaction metadata appears.
+- Completed payments are never repriced.
+
+Rotating the Laravel `APP_KEY` invalidates existing coupon hashes. Export or replace active campaigns before an application-key rotation.
 
 ## Package choice
 
-Use `ConferenceDiscountEligibility-1.1.0.zip` in Leconfe's **Upload Plugin** action. Leconfe 1.4.6 accepts ZIP packages only. The `.tar.gz` is supplied as a supplemental distribution artifact and is not the panel-upload file.
+Use `ConferenceDiscountEligibility-1.2.0.zip` in Leconfe's **Upload Plugin** action. Leconfe 1.4.6 accepts ZIP packages only. The `.tar.gz` is a supplemental archive and is not the panel-upload file.
 
 ## Upgrade behavior
 
-Version 1.1.0 keeps schema version 2 and requires no new database migration. It expands the discount engine and safe recalculation from participant payments to both native Leconfe payment types: participant and submission fees. The earlier `identity_policy` column remains unchanged. Existing domain rules remain on **Verified email only**. An administrator must explicitly enable author fallback for each intended domain.
+Version 1.2.0 upgrades the plugin schema to version 3 and creates coupon campaign and coupon redemption tables. Existing eligibility rules, payments, snapshots, invoices, and audit logs are preserved. See `UPGRADE-1.2.0.md`.
 
 ## Validation status
 
-Version 1.0.1 was installed in the real Leconfe 1.4.6 panel and successfully recalculated an unpaid participant payment from EUR 30.00 to EUR 18.00, updating Payment Detail, Audit Log, and Invoice 003. The author-confirmation path was also exercised in the target panel. Version 1.1.0 adds submission-fee coverage and has passed the isolated automated/source-contract, entrypoint, lint, package, and secret-scan checks recorded in `VALIDATION_REPORT.md`. Submission-fee discounting remains pending validation after upload to the target panel.
+The automatic discount path has already been exercised successfully in the real target installation, including participant and submission amounts, Payment Detail, Audit Log, and invoice output. Version 1.2.0 has been subjected to the isolated tests, source-contract checks, entrypoint/runtime simulations, syntax lint, secret scan, and archive extraction checks recorded in `VALIDATION_REPORT.md`.
 
-PayPal Sandbox remains **PENDING EXTERNAL CREDENTIALS**.
+The coupon UI and coupon database migration still require installation and end-to-end validation in the authenticated target panel. PayPal Sandbox remains **PENDING EXTERNAL CREDENTIALS**.
 
 ## Documentation
 
@@ -43,6 +57,6 @@ PayPal Sandbox remains **PENDING EXTERNAL CREDENTIALS**.
 - `INSTALLATION.md`
 - `CONFIGURATION.md`
 - `SECURITY.md`
-- `UPGRADE-1.1.0.md`
+- `UPGRADE-1.2.0.md`
 - `VALIDATION_REPORT.md`
 - `CHANGELOG.md`

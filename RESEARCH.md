@@ -189,8 +189,9 @@ Currencies whose PayPal representation is not two decimal places are rejected fo
 | Payment creation | `PaymentManager::queue()` | Container service replacement | Parent creates native Payment; plugin stores snapshot afterward in same transaction |
 | Payment admin edit | `PaymentDetail::updatePaymentFeeRecord()` | No hook | `App\Models\Meta` observer reacts after native `base_amount` write |
 | PayPal start | `PaypalPage::handlePayment()` | Uses Payment model amount | No PayPal modification; final Payment amount flows through unchanged |
-| PayPal confirmation | `PaypalPage` completion handler | Native `fulfillQueued()` | No plugin intervention; PayPal remains owner of paid state |
+| PayPal confirmation | `PaypalPage` completion handler | Native `fulfillQueued()` | PayPal remains owner of paid state; a Payment observer only consumes an already-reserved coupon after native `paid_at` changes |
 | Payment detail | `PaymentManager::getPaymentMethodInfolist` | Official hook | Add read-only discount section |
+| Coupon entry before gateway | `PaymentDetail` → `PaymentManager::getPaymentMethodInfolist` | Official hook | Add a nested Livewire coupon form to unpaid participant and submission payment pages |
 | Invoice | native Invoice page/model | Metadata-driven | Preserve base amount and append a negative discount item |
 | Receipt | native Receipt page/model | Metadata-driven | Same snapshot/itemization strategy |
 | Payment Report | native/documented report | No custom-column hook found | Separate discount report, native report untouched |
@@ -242,7 +243,7 @@ The implemented strategy is an explicit per-domain policy:
 | `verified_email_only` | matching domain plus verified account email | Yes |
 | `verified_email_or_confirmed_author` | verified email, or exact user owns/is an Author participant of a qualifying submission in the same scheduled conference | No |
 
-No author-email metadata matching is used as proof, and no global Author role check is used. Existing domain rows remain on the secure default after schema upgrade.
+Version 1.0.2 initially accepted only submission ownership or linked Author-participant evidence. Version 1.0.3 later added exact, normalized submission-author email evidence. The global Author role alone is never used as proof. Existing domain rows remain on the secure default after schema upgrade.
 
 The same `DomainIdentityVerifier` is used during initial Payment creation and explicit unpaid-payment recalculation. The winning rule snapshot records the verification method and author evidence so that invoice/payment changes remain auditable.
 
@@ -258,3 +259,61 @@ Evidence sources are now:
 - `submission_owner`;
 - `submission_participant_author`;
 - `submission_author_email`.
+
+
+## 1.2.0 - coupon campaigns and payment-page redemption
+
+### Feasibility conclusion
+
+Leconfe 1.4.6 does not provide a native coupon model or a coupon field inside participant/submission forms. It does, however, build Payment Detail infolists through `PaymentManager::getPaymentMethodInfolist`, an official hook already used by payment plugins. That hook is sufficient to add a plugin-owned Livewire component after the Payment exists and before the user opens PayPal. No core form or PaypalPayment source edit is required.
+
+### Payment-page lifecycle
+
+1. Participant Registration or Submission Payment creates the native unpaid `Payment`.
+2. Payment Detail renders the plugin's `Coupon` section through the official infolist hook.
+3. The authenticated payment viewer enters a code.
+4. The server normalizes and HMAC-hashes the code, scopes lookup to the current Scheduled Conference, and validates dates, status, payment type, optional Payment Fee restrictions, global limit, and per-user limit.
+5. The coupon candidate is compared with direct-user, exact-email, and institutional-domain candidates; discounts do not stack and the highest valid percentage wins.
+6. A winning coupon is reserved under a database transaction and pessimistic row locks. The native Payment amount, negative invoice item, snapshot, counters, and audit log are updated atomically.
+7. PaypalPayment 1.1.0 continues to read the final native `Payment.amount` and remains solely responsible for checkout and paid-state confirmation.
+8. When Leconfe changes `paid_at`, a Payment observer changes the existing reservation to `consumed`. It does not call `fulfillQueued()` or mark the Payment paid.
+
+### Coupon schema
+
+| Table/column | Purpose |
+|---|---|
+| `conference_discount_coupons` | Scheduled-conference-scoped campaigns, HMAC code hash, masked hint, percentage, validity, limits, payment types, and optional fee restrictions |
+| `conference_discount_coupon_redemptions` | One reservation/consumption history row per Payment, with user, campaign, state, timestamps, and non-secret metadata |
+| `conference_discount_payment_snapshots.coupon_campaign_id` | Auditable winning coupon reference |
+| `conference_discount_settings.coupon_redemption_enabled` | Scheduled-conference setting that enables the payment-page form |
+
+The coupon code itself is not stored. A keyed HMAC-SHA256 digest derived from the normalized code and Laravel `APP_KEY` is stored, together with a masked display hint. Generated codes use 128 random bits. Rotating `APP_KEY` invalidates unresolved coupon lookups and therefore requires replacement of active campaigns.
+
+### Concurrency and limits
+
+Application, replacement, removal, and consumption execute in database transactions. The Payment, coupon campaign, reservation, and snapshot are row-locked where relevant. Reserved and consumed redemptions count toward campaign and per-user limits. The same Payment may re-evaluate its own existing reservation without consuming a second use. A lower second coupon cannot replace a higher coupon already selected.
+
+### Payment safety
+
+Coupon modification uses the same `PaymentSafety::canRecalculate()` policy as administrative recalculation. Paid Payments, Payments with a recorded payment method, and Payments with PayPal completion metadata are immutable. PaypalPayment 1.1.0 does not expose a durable checkout-start marker before redirect, so the UI warns the user not to modify the coupon after opening the gateway and administrators must not recalculate a Payment with an open PayPal tab.
+
+### Administrative lifecycle
+
+`Coupon Campaigns` is a Scheduled Conference resource. Administrators can generate a cryptographically random code or enter a validated custom code, configure payment types and Payment Fees, validity, total and per-user limits, and active state. The full code is displayed only immediately after creation/regeneration. Campaigns with recorded uses cannot be deleted or regenerated through the panel; they can be deactivated.
+
+### 1.2.0 extension map
+
+| Function | Class/file | Extension | Strategy |
+|---|---|---|---|
+| Payment-page field | `PaymentDetail` | `PaymentManager::getPaymentMethodInfolist` | `ViewEntry` renders plugin Livewire component |
+| Coupon validation | `CouponEligibilityService` | Plugin service | Server-only, scheduled-conference-scoped validation |
+| Highest-rule selection | `PaymentDiscountService::prepareWithCandidates()` | Existing plugin service | Coupon joins automatic candidates; no stacking |
+| Reservation | `CouponRedemptionService::apply()` | Plugin service | Transaction, locks, Payment/snapshot/invoice/audit update |
+| Removal | `CouponRedemptionService::remove()` | Plugin service | Releases reservation and restores best automatic rule |
+| PayPal hand-off | `PaypalPage::handlePayment()` | Native Payment amount | No PayPal modification |
+| Consumption | `PaymentObserver::updated()` | Eloquent observer | Consumes reservation only after native `paid_at` change |
+| Administration | `CouponCampaignResource` | Filament resource | Scheduled-conference-scoped CRUD and code generation |
+
+### Independent-plugin conclusion for coupons
+
+The requested payment-stage coupon field is implementable as an independent plugin using the verified Payment Detail infolist hook and a plugin-owned Livewire component. No core patch, textual replacement, PayPal duplication, or manual PHP copy is required. Final browser execution still needs confirmation in the target panel after installing version 1.2.0; local validation cannot substitute for that authenticated Filament/Livewire test.

@@ -19,6 +19,7 @@ final class SettingsRepository
                 'eligible_add_on_keys' => [],
                 'recalculate_unpaid_default' => false,
                 'notify_on_recalculation' => false,
+                'coupon_redemption_enabled' => true,
                 'csv_max_bytes' => 5 * 1024 * 1024,
                 'schema_version' => SchemaDefinition::VERSION,
             ],
@@ -28,6 +29,11 @@ final class SettingsRepository
     public function scope(int $scheduledConferenceId): DiscountScope
     {
         return $this->forConference($scheduledConferenceId)->scopeValue();
+    }
+
+    public function couponRedemptionEnabled(int $scheduledConferenceId): bool
+    {
+        return (bool) $this->forConference($scheduledConferenceId)->coupon_redemption_enabled;
     }
 
     /** @return list<string> */

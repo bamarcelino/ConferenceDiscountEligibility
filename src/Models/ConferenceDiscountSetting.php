@@ -19,6 +19,7 @@ final class ConferenceDiscountSetting extends Model
         'eligible_add_on_keys',
         'recalculate_unpaid_default',
         'notify_on_recalculation',
+        'coupon_redemption_enabled',
         'csv_max_bytes',
         'schema_version',
     ];
@@ -27,6 +28,7 @@ final class ConferenceDiscountSetting extends Model
         'eligible_add_on_keys' => 'array',
         'recalculate_unpaid_default' => 'boolean',
         'notify_on_recalculation' => 'boolean',
+        'coupon_redemption_enabled' => 'boolean',
         'csv_max_bytes' => 'integer',
         'schema_version' => 'integer',
     ];

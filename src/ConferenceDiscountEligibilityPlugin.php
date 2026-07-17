@@ -12,15 +12,20 @@ use App\Models\Payment;
 use App\Models\User;
 use App\Panel\ScheduledConference\Pages\ParticipantRegistration;
 use ConferenceDiscountEligibility\Managers\DiscountAwarePaymentManager;
+use ConferenceDiscountEligibility\Livewire\CouponRedemption;
+use ConferenceDiscountEligibility\Models\ConferenceDiscountCoupon;
 use ConferenceDiscountEligibility\Models\ConferenceDiscountDomain;
 use ConferenceDiscountEligibility\Models\ConferenceDiscountEntitlement;
+use ConferenceDiscountEligibility\Observers\CouponObserver;
 use ConferenceDiscountEligibility\Observers\DomainObserver;
 use ConferenceDiscountEligibility\Observers\EntitlementObserver;
 use ConferenceDiscountEligibility\Observers\MetaObserver;
+use ConferenceDiscountEligibility\Observers\PaymentObserver;
 use ConferenceDiscountEligibility\Observers\UserObserver;
 use ConferenceDiscountEligibility\Panel\ScheduledConference\Pages\DiscountCsvImport;
 use ConferenceDiscountEligibility\Panel\ScheduledConference\Pages\DiscountSettings;
 use ConferenceDiscountEligibility\Panel\ScheduledConference\Resources\AuditLogResource;
+use ConferenceDiscountEligibility\Panel\ScheduledConference\Resources\CouponCampaignResource;
 use ConferenceDiscountEligibility\Panel\ScheduledConference\Resources\DiscountPaymentReportResource;
 use ConferenceDiscountEligibility\Panel\ScheduledConference\Resources\EmailEntitlementResource;
 use ConferenceDiscountEligibility\Panel\ScheduledConference\Resources\IndividualEntitlementResource;
@@ -30,9 +35,11 @@ use ConferenceDiscountEligibility\Services\PaymentDetailPresenter;
 use ConferenceDiscountEligibility\Services\SchemaInstaller;
 use Filament\Infolists\Components\Section;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Components\ViewEntry;
 use Filament\Panel;
 use Filament\Support\Facades\FilamentView;
 use Filament\View\PanelsRenderHook;
+use Livewire\Livewire;
 
 final class ConferenceDiscountEligibilityPlugin extends Plugin
 {
@@ -50,10 +57,14 @@ final class ConferenceDiscountEligibilityPlugin extends Plugin
         app()->forgetInstance(PaymentManager::class);
         app()->bind(PaymentManager::class, DiscountAwarePaymentManager::class);
 
+        ConferenceDiscountCoupon::observe(CouponObserver::class);
         ConferenceDiscountEntitlement::observe(EntitlementObserver::class);
         ConferenceDiscountDomain::observe(DomainObserver::class);
+        Payment::observe(PaymentObserver::class);
         User::observe(UserObserver::class);
         Meta::observe(MetaObserver::class);
+
+        Livewire::component('conference-discount-coupon-redemption', CouponRedemption::class);
 
         $this->registerPaymentDetailHook();
         $this->registerRegistrationPreviewHook();
@@ -72,6 +83,7 @@ final class ConferenceDiscountEligibilityPlugin extends Plugin
                 IndividualEntitlementResource::class,
                 EmailEntitlementResource::class,
                 InstitutionalDomainResource::class,
+                CouponCampaignResource::class,
                 AuditLogResource::class,
                 DiscountPaymentReportResource::class,
             ])
@@ -121,6 +133,25 @@ final class ConferenceDiscountEligibilityPlugin extends Plugin
                         ->getStateUsing(static fn (Payment $record) => $presenter->snapshot($record)?->eligibility_snapshot_at),
                 ])
                 ->columns(2);
+
+            $schemas[] = Section::make(__('ConferenceDiscountEligibility::messages.coupon'))
+                ->visible(static function (Payment $record): bool {
+                    $enabled = app(\ConferenceDiscountEligibility\Services\SettingsRepository::class)
+                        ->couponRedemptionEnabled((int) $record->scheduled_conference_id);
+                    $discountMeta = $record->getMeta('conference_discount_eligibility', []);
+                    $hasCoupon = data_get(is_array($discountMeta) ? $discountMeta : [], 'eligibility_type') === 'coupon'
+                        || \ConferenceDiscountEligibility\Models\ConferenceDiscountCouponRedemption::query()
+                            ->where('payment_id', $record->getKey())
+                            ->whereIn('status', ['reserved', 'consumed'])
+                            ->exists();
+
+                    return $enabled || $hasCoupon;
+                })
+                ->schema([
+                    ViewEntry::make('cde_coupon_redemption')
+                        ->view('ConferenceDiscountEligibility::infolists.coupon-redemption')
+                        ->columnSpanFull(),
+                ]);
 
             return false;
         });

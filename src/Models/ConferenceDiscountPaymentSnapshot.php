@@ -20,6 +20,7 @@ final class ConferenceDiscountPaymentSnapshot extends Model
         'user_id',
         'entitlement_id',
         'domain_rule_id',
+        'coupon_campaign_id',
         'original_base_amount_minor',
         'discount_percentage_basis_points',
         'base_discount_amount_minor',
@@ -77,5 +78,10 @@ final class ConferenceDiscountPaymentSnapshot extends Model
     public function domainRule(): BelongsTo
     {
         return $this->belongsTo(ConferenceDiscountDomain::class, 'domain_rule_id');
+    }
+
+    public function couponCampaign(): BelongsTo
+    {
+        return $this->belongsTo(ConferenceDiscountCoupon::class, 'coupon_campaign_id');
     }
 }

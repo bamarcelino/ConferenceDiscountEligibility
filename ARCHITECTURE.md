@@ -1,13 +1,14 @@
-# ARCHITECTURE — Conference Discount Eligibility 1.1.0
+# ARCHITECTURE - Conference Discount Eligibility 1.2.0
 
 ## Architectural goals
 
 - Remain independent from Leconfe core files and PaypalPayment.
-- Apply a deterministic server-side discount before native Payment creation.
-- Preserve the native Payment, PayPal, invoice, receipt, and notification lifecycle.
-- Scope every rule and query to the current scheduled conference.
-- Preserve an immutable-at-creation snapshot and explicit recalculation history.
-- Reject unsafe or ambiguous inputs instead of guessing.
+- Apply every amount change on the server before the payment gateway is opened.
+- Preserve the native Payment, PayPal, invoice, receipt, report, and notification lifecycle.
+- Scope rules, coupons, reservations, and queries to the current scheduled conference.
+- Use integer minor units and basis points for monetary calculations.
+- Preserve auditable snapshots and explicit recalculation history.
+- Prevent completed or already initiated payments from being repriced.
 
 ## Component overview
 
@@ -19,172 +20,236 @@ PaymentManager::get()
         |
         v
 DiscountAwarePaymentManager ----> EligibilityResolver
-        |                                |
-        |                                +-- user entitlement
-        |                                +-- exact-email entitlement
+        |                                +-- direct user
+        |                                +-- exact email
         |                                +-- institutional domain
-        |                                      |
-        |                                      +-- DomainIdentityVerifier
-        |                                             +-- verified email
-        |                                             +-- confirmed conference author (opt-in)
         v
-DiscountCalculator (integer minor units)
+native Payment created with final automatic amount
         |
-        +-- native Payment.amount = final total
-        +-- native meta.base_amount = original base
-        +-- native meta.additional_items += negative discount line
-        +-- plugin snapshot + audit
-        |
-        v
-PaymentDetail / Invoice / Receipt / PaypalPayment
+        +------------------------+
+        |                        |
+        v                        v
+Payment Detail             Coupon Campaigns
+official infolist hook      scheduled-conference admin
+        |                        |
+        v                        v
+Livewire Coupon form ---> CouponRedemptionService
+                                  |
+                                  +-- normalize and keyed-hash code
+                                  +-- validate campaign/payment/user limits
+                                  +-- compare automatic rules + coupons
+                                  +-- lock Payment/campaign/redemption rows
+                                  +-- update Payment.amount
+                                  +-- replace negative discount line
+                                  +-- update snapshot and audit
+                                  +-- reserve winning coupon
+                                          |
+                                          v
+                               official PaypalPayment 1.1.0
+                                          |
+                                          v
+                               PaymentManager::fulfillQueued()
+                                          |
+                                          v
+                                 paid_at update observer
+                                          |
+                                          v
+                                   consume reservation
 ```
 
 ## Core extension mechanisms
 
 ### PaymentManager binding
 
-`PaymentManager::get()` resolves from the Laravel container. During plugin boot the plugin binds the core class to `DiscountAwarePaymentManager`, which exactly preserves the target method signature and delegates to `parent::queue()`.
+`PaymentManager::get()` resolves from the Laravel container. During plugin boot, the plugin binds the core manager to `DiscountAwarePaymentManager`, preserves the target `queue()` signature, calculates automatic eligibility, and delegates payment creation to `parent::queue()`.
 
-Both native Leconfe 1.4.6 payment types are eligible: `TYPE_PARTICIPANT_FEE` and `TYPE_SUBMISSION_FEE`. Unknown future payment types are delegated unchanged to the core manager.
+Both native Leconfe 1.4.6 types are supported:
+
+- `TYPE_PARTICIPANT_FEE`;
+- `TYPE_SUBMISSION_FEE`.
+
+Unknown future payment types are delegated unchanged.
+
+The plugin does not override `fulfillQueued()` and does not set `paid_at`. The official payment mechanism remains solely responsible for completing payments.
+
+### Payment-detail infolist hook
+
+Leconfe 1.4.6 calls `PaymentManager::get()->getPaymentMethodInfolist()` in the right-hand Payment Detail column. The plugin registers two sections through the official `PaymentManager::getPaymentMethodInfolist` hook:
+
+- read-only discount snapshot details;
+- a `ViewEntry` hosting the nested Livewire coupon component.
+
+No core Blade template or Payment Detail class is replaced.
+
+### Livewire coupon component
+
+`CouponRedemption` receives only a Payment ID. Every mount, render, apply, and remove request reloads the Payment and verifies:
+
+- current scheduled conference matches the Payment;
+- authenticated user can view the Payment;
+- the payment remains safely recalculable.
+
+The browser submits only the coupon string. Percentage, reason, amount, eligibility, and limits are resolved on the server. Invalid attempts are rate-limited by user, payment, and hashed IP context.
+
+### Payment observer
+
+The official PayPal plugin calls the native `PaymentManager::fulfillQueued()`, which updates `paid_at`. The plugin observes that native update and changes a reserved coupon to consumed. The observer is idempotent and does not modify the Payment.
 
 ### Metadata observer
 
-The core administrative edit path writes Payment fields, then `additional_items`, then `base_amount`. The observer reacts only to a saved `base_amount` metadata record belonging to an unpaid supported Payment. A static recursion guard suppresses plugin-originated metadata writes.
-
-### Filament hooks
-
-- `PanelsRenderHook::PAGE_START`, scoped to `ParticipantRegistration`, renders eligibility and active fee previews.
-- `PaymentManager::getPaymentMethodInfolist` adds the read-only discount snapshot to Payment Detail.
-- Explicit resources/pages are registered only on the `scheduledConference` panel.
+The native administrative fee-edit path writes Payment fields and then `base_amount`. The existing metadata observer reapplies the stored snapshot only to a safely unpaid supported Payment. A recursion guard suppresses plugin-originated metadata writes.
 
 ## Data model
 
 ### `conference_discount_settings`
 
-One row per scheduled conference. Stores scope, eligible add-on keys, recalculation/notification defaults, and CSV limit.
+One row per scheduled conference. Stores discount scope, eligible add-on keys, recalculation defaults, CSV size limit, schema version, and `coupon_redemption_enabled`.
 
 ### `conference_discount_entitlements`
 
-Stores direct-user and exact-email eligibility. The original email is retained for display; normalized email is used for matching. Pending email records can be linked once to a real user ID.
+Stores direct-user and exact-email rules. Original email is retained for display; normalized email is used for matching. Pending email records may later link to one real user ID.
 
 ### `conference_discount_domains`
 
-Stores normalized domain, subdomain behavior, validity, status, optional usage limit, and `identity_policy`. Existing rows default to `verified_email_only`; the optional fallback is `verified_email_or_confirmed_author`.
+Stores normalized domain, subdomain behavior, identity policy, percentage, validity, status, and optional usage limit.
+
+### `conference_discount_coupons`
+
+Stores one campaign/code per row:
+
+- scheduled conference;
+- campaign name;
+- keyed code hash and masked hint;
+- percentage and reason;
+- eligible native payment types;
+- optional eligible Payment Fee IDs;
+- validity and active status;
+- optional global maximum uses;
+- per-user limit;
+- current reserved/consumed use count;
+- creator/updater and timestamps.
+
+The full code is never persisted.
+
+### `conference_discount_coupon_redemptions`
+
+One row per Payment. The unique `payment_id` constraint prevents two active coupon records for the same payment. Statuses are:
+
+- `reserved`;
+- `consumed`;
+- `released`;
+- `revoked`.
+
+The record stores campaign, user, timestamps, and non-secret context.
 
 ### `conference_discount_payment_snapshots`
 
-One row per Payment. Integer minor-unit columns preserve original base, discount, final base, add-on amount, and final total. JSON metadata preserves the native payment type, evaluated candidates, selected add-on eligibility, and explicit recalculation history.
+One row per Payment. Integer minor-unit columns preserve original base, discount, final base, add-ons, original total, and final total. The row can reference a user/email entitlement, domain rule, or coupon campaign. JSON metadata preserves the native payment type, evaluated candidates, identity evidence, scope, add-on configuration, origin, and recalculation history.
 
-### `conference_discount_import_batches`
+### Import and audit tables
 
-Stores import mode, strategy, counts, source filename, and a structured report. Uploaded files are private and may be deleted after processing according to normal Laravel storage maintenance.
+Import batches retain validation/report metadata. Audit logs retain actor, affected user, action, safe before/after data, context, origin, time, and one-way IP hash. Coupon hashes and full codes are excluded.
 
-### `conference_discount_audit_logs`
+## Automatic eligibility
 
-Append-only application log. The plugin UI exposes no edit/delete actions. IP addresses are stored only as an HMAC hash when available.
+The resolver evaluates:
 
-## Constraints and indexes
+1. direct `user_id` rule;
+2. exact normalized email rule;
+3. boundary-safe institutional-domain rule.
 
-- Unique settings row per scheduled conference.
-- Unique normalized email per scheduled conference when present.
-- Unique normalized domain per scheduled conference.
-- Unique snapshot per Payment.
-- Foreign keys use cascade for plugin-owned conference/payment rows and null-on-delete for actor/user references where history must remain.
-- Candidate and report lookups have composite scheduled-conference indexes.
+A domain rule may require verified email or explicitly allow verified email/confirmed same-conference authorship. Confirmed authorship requires concrete submission evidence: owner, linked participant with Author role, or exact normalized email in the submission author list. The global self-assignable Author role alone is not sufficient.
 
-Nullable unique behavior is backed by application-level transactions and duplicate checks to remain portable across MySQL/MariaDB, PostgreSQL, and SQLite.
+## Coupon eligibility
 
-## Eligibility resolution
+A submitted code is normalized and HMAC-SHA256 hashed with the Laravel application key. Lookup includes `scheduled_conference_id`, so an identical code may be independently configured in another conference.
 
-1. Normalize the authenticated user email.
-2. Link a pending exact-email entitlement to the user when safe.
-3. Evaluate active, currently valid direct-user records.
-4. Evaluate active, currently valid exact-email records.
-5. For each boundary-matched domain rule, evaluate its explicit identity policy.
-6. Under `verified_email_only`, require `User::hasVerifiedEmail()`.
-7. Under `verified_email_or_confirmed_author`, accept either verified email or concrete author evidence in the same scheduled conference.
-8. Exclude exhausted usage-limited records.
-9. Select the highest basis-point value.
-10. On a percentage tie, prefer direct user, exact email, then domain.
-11. Record every evaluated candidate, identity evidence, and the winner.
+The campaign is rejected when any condition fails:
 
-Rules are non-cumulative.
+- missing/inactive/not-yet-valid/expired;
+- global maximum uses reached;
+- wrong native payment type;
+- Payment Fee not allowed;
+- per-user limit reached;
+- different scheduled conference;
+- payment no longer safely recalculable.
 
-## Confirmed-author identity evidence
+A campaign row, Payment row, relevant redemption rows, and usage rows are locked inside a database transaction.
 
-The author fallback is intentionally narrower than the Leconfe account role and can validate domain eligibility for either participant or submission payments:
+## Selection and precedence
 
-- the exact `users.id` must own a `Submission` in the same `scheduled_conference_id`; or
-- the exact user must be a `SubmissionParticipant` for a submission in that scheduled conference, and that participant's related role must be `UserRole::Author`.
+Discounts are non-cumulative. The highest percentage wins. Equal percentages use this stable priority:
 
-The submission status must be one of `Queued`, `On Review`, `On Payment`, `On Presentation`, `Editing`, or `Published`. `Incomplete`, `Payment Declined`, `Declined`, and `Withdrawn` are excluded.
+1. direct user;
+2. coupon;
+3. exact email;
+4. institutional domain.
 
-The verifier uses `Submission::withoutGlobalScopes()` only to avoid accidental current-panel scope leakage, then reapplies an explicit `scheduled_conference_id` predicate. It does not accept the self-assignable Author role by itself and does not trust a matching email string from author metadata.
-
-The resulting snapshot context records `identity_policy`, `email_verified`, `confirmed_author`, verification method, evidence source, submission ID, and submission status. This evidence is available in Audit Log, Payment Detail, and the discount report.
+When replacing a coupon, the existing reserved coupon is also included in selection. A lower new coupon therefore cannot downgrade an already reserved higher coupon. A valid but losing coupon is not reserved or consumed.
 
 ## Calculation
 
-`percentage_basis_points` uses hundredths of one percent:
+Percentages use basis points:
 
-- `4000` = 40.00%
-- `3000` = 30.00%
-- `10000` = 100.00%
+- `4000` = 40.00%;
+- `3000` = 30.00%;
+- `10000` = 100.00%.
 
-All amounts are converted to minor units before arithmetic. For base-only scope:
+All arithmetic uses integer minor units. The default scope discounts only the base fee. Optional eligible add-ons are included only when their exact generated keys are configured.
 
-```text
-eligible = original base
-final total = original base + add-ons - round(eligible × percentage)
-```
+The native Payment receives:
 
-For base-and-eligible-add-ons scope, only add-on keys explicitly configured in settings are added to the eligible amount. Blank key configuration means no add-on is discounted.
+- final amount in `Payment.amount`;
+- original base in `meta.base_amount`;
+- original add-ons plus one negative `cde_discount_line` in `meta.additional_items`.
 
-The line added to native Payment metadata is negative and marked with `cde_discount_line=true`, allowing safe removal/replacement during recalculation.
+Invoice, receipt, Payment Detail, reports, and PaypalPayment therefore consume the same native Payment value and itemization.
 
-## Snapshot and validity
+## Coupon lifecycle
 
-Eligibility validity is checked at Payment creation. The snapshot does not change when a rule later expires or is edited. An unpaid payment changes only through an explicit recalculation or the native fee-edit flow. Paid payments are never recalculated.
+### Apply
 
-Usage limits are consumed only when a new Payment receives a new snapshot. Updating the same snapshot does not consume another use.
+1. Lock Payment and campaign.
+2. Validate campaign and user/payment limits.
+3. Evaluate automatic rules, submitted coupon, and any current reserved coupon.
+4. If submitted coupon wins, update amount, line item, snapshot, use counters, audit, and reservation.
+5. If another rule wins, leave current payment/reservation unchanged.
 
-## Pending-payment recalculation
+### Remove
 
-The recalculator locks the Payment row and refuses when:
+Removal is allowed only before payment activity. The plugin releases the reservation and recalculates the best remaining automatic rule.
 
-- `paid_at` is set;
-- type is neither participant fee nor submission fee;
-- `payment_method` is already set;
-- PayPal completion metadata exists.
+### Consume
 
-PaypalPayment 1.1.0 does not record an initiation marker before redirect. The plugin cannot detect a checkout open in another browser tab, so bulk/automatic recalculation defaults off and shows a warning.
+When native `paid_at` changes from null to a timestamp, the Payment observer converts `reserved` to `consumed`. Repeated observer/service calls are no-ops after the first transition.
 
-## CSV security
+### Release
 
-- Private local storage.
-- Extension, MIME, byte-size, row-count, encoding, header, email, percentage, and date validation.
-- Preview and dry-run execute the same validator as persistence.
-- Duplicate detection occurs inside the file and against the current conference.
-- Update/ignore/error strategies are explicit.
-- Exported cells beginning with `=`, `+`, `-`, or `@` are prefixed with an apostrophe.
-- No spreadsheet formulas are evaluated.
+Replacement, explicit removal, or administrative recalculation that changes the winner releases the coupon and decrements its snapshot use count.
+
+## PayPal boundary
+
+PaypalPayment 1.1.0 reads `Payment.amount`, sends that amount and currency to PayPal, validates the returned amount/currency, then calls native `fulfillQueued()`. The discount plugin supplies the final Payment value but does not create PayPal orders, credentials, redirects, return handlers, or completion logic.
+
+Because PaypalPayment 1.1.0 does not store an open-checkout marker before redirect, the plugin blocks changes when `payment_method` or PayPal completion metadata exists but cannot detect a PayPal tab that was opened and not yet returned. Users and administrators must not apply/remove/recalculate discounts after opening PayPal in another tab.
 
 ## Authorization and tenant isolation
 
-Every page and resource requires the same scheduled-conference update authorization used by Leconfe administration. All resource queries add `scheduled_conference_id = currentScheduledConferenceId`. IDs supplied by the browser are reloaded through scoped queries before modification.
+Administrative resources require the scheduled-conference update authorization used by the plugin. Resource queries are scoped to current `scheduled_conference_id`. Coupon form requests reload the Payment and enforce the native view policy. Payment Fee IDs selected for a campaign are validated to belong to the same conference.
 
-## Installation and schema lifecycle
+## Schema lifecycle
 
-Plugin boot calls the idempotent installer before registering UI. Schema version 2 adds `conference_discount_domains.identity_policy` with a secure `verified_email_only` default and updates settings rows to schema version 2. Disabling the plugin leaves schema/data intact. Because Leconfe has no uninstall callback, uninstalling the folder also leaves data intact by design. A reversible schema class and migration `down()` method are included for controlled rollback.
+Schema version 3 is installed idempotently under a cache lock. It creates coupon tables and adds missing coupon columns to existing settings and snapshots. Foreign keys, unique constraints, lookup indexes, and a reverse-order `down()` are provided.
+
+Disabling the plugin leaves schema and data intact. A production downgrade should restore a database backup rather than dropping coupon structures beneath existing coupon snapshots.
 
 ## Compatibility boundary
 
 Confirmed design target:
 
-- Leconfe 1.4.6 (`f7e369d`)
-- PaypalPayment 1.1.0 (`6b2a0fc`)
-- Filament 3.3.52
-- Livewire 3.8.1
-- PHP `^8.1` application constraint; validation syntax/runtime executed on PHP 8.4.16
+- Leconfe 1.4.6 (`f7e369d`);
+- PaypalPayment 1.1.0 (`6b2a0fc`);
+- Laravel/Filament/Livewire versions bundled by that Leconfe release;
+- PHP application constraint `^8.1`.
 
-The package contains a version guard and refuses to boot on an incompatible Leconfe version when a readable version file reports a value outside `1.4.6`.
+Local validation was executed on PHP 8.4.16. Full target-panel and PayPal Sandbox validation are recorded separately in `VALIDATION_REPORT.md`.

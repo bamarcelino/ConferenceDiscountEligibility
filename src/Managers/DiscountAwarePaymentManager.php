@@ -104,4 +104,5 @@ final class DiscountAwarePaymentManager extends PaymentManager
             return $payment;
         });
     }
+
 }

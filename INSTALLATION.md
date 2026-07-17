@@ -1,60 +1,74 @@
-# Installation and upgrade
+# Installation and Upgrade
 
-## Supported target
+## Compatibility
 
 - Leconfe 1.4.6
 - Paypal Payment 1.1.0
-- PHP satisfying the Leconfe 1.4.6 application requirement
-- PHP `zip` extension for the Leconfe Upload Plugin action
+- PHP compatible with the target Leconfe installation
+- Laravel, Filament, and Livewire versions bundled by Leconfe 1.4.6
+- PHP extensions required by Leconfe, plus JSON and mbstring
 
-## Upgrade from 1.0.3
+## Upgrade from 1.1.0 or earlier
 
 1. Back up the Leconfe database and plugin directory.
-2. Do not start a PayPal checkout for any unpaid payment that will be recalculated.
-3. In the Scheduled Conference panel, open **Plugin Management**.
-4. Upload **`ConferenceDiscountEligibility-1.1.0.zip`** over the existing plugin.
-5. Enable the plugin if the update disabled it, then reload the scheduled-conference panel.
-6. Confirm version **1.1.0** in Plugin Management.
-7. No new schema migration is required. Existing settings, rules, snapshots, audit logs, and the domain `identity_policy` are preserved.
-8. Open **Discount Eligibility → Institutional Domains**, edit the intended domain, select the identity policy, and recalculate only after confirming no PayPal checkout is open.
+2. Confirm no PayPal checkout is open for a payment that may be changed.
+3. Open **Plugin Management** and disable Conference Discount Eligibility temporarily.
+4. Upload `ConferenceDiscountEligibility-1.2.0.zip` over the existing plugin.
+5. Enable the plugin.
+6. Refresh with `Ctrl + Shift + R`.
+7. Confirm version 1.2.0.
+8. Open **Discount Eligibility - Settings** and review **Allow coupon entry on payment pages**.
 
-If Chrome reports `File of invalid type`, use the previously supplied Chrome ZIP MIME helper. Do not upload the `.tar.gz`.
+The enabled plugin runs its idempotent schema installer. Schema version 3 adds coupon campaigns, coupon redemptions, the coupon snapshot foreign key, and the conference-level coupon setting. Existing records are preserved.
 
-## Fresh installation
+## First installation
 
 1. Back up the database.
-2. Upload `ConferenceDiscountEligibility-1.1.0.zip` through **Upload Plugin**.
-3. Confirm that the detected root folder is `ConferenceDiscountEligibility`.
-4. Enable the plugin for the intended scheduled conference.
-5. Reload the panel. The plugin creates its tables idempotently.
-6. Review **Discount Eligibility → Settings**.
-7. Create rules only in a staging/test scheduled conference first.
+2. Keep Paypal Payment 1.1.0 installed and configured.
+3. Open **Plugin Management - Upload Plugin**.
+4. Upload `ConferenceDiscountEligibility-1.2.0.zip`.
+5. Enable the plugin.
+6. Open **Discount Eligibility - Settings**.
+7. Keep **Base fee only** initially.
+8. Create a test automatic entitlement and a test coupon campaign.
+9. Create one unpaid Participant Payment and one unpaid Submission Payment.
+10. Apply the coupon from each payment page and inspect Payment Detail, invoice, Audit Log, and Discount Payment Report.
+11. Complete a PayPal Sandbox transaction before production use.
 
-## Enabling author-confirmed domain validation
+## ZIP MIME issue in Chrome
 
-For a domain such as `claec.org`:
+Leconfe 1.4.6's browser-side upload field accepts the exact MIME `application/zip`. Some Windows/Chrome combinations label valid ZIP files differently. If the panel reports **File of invalid type**, use the previously supplied Chrome ZIP MIME helper or apply the documented Leconfe upload MIME patch. This does not alter the plugin archive.
 
-1. Edit the domain rule.
-2. In **Domain identity verification**, select **Verified email or confirmed conference author**.
-3. Save with **Recalculate eligible unpaid payments** enabled when safe.
-4. The exact payment user must be either:
-   - the owner of a submitted work in the same scheduled conference; or
-   - linked to a submission in the same scheduled conference as a participant whose role is `Author`.
-5. Draft/incomplete, declined, payment-declined, and withdrawn submissions are not accepted as author evidence.
-6. Merely assigning or self-selecting the global/scheduled-conference `Author` role is not sufficient.
+## Package structure
 
-Expected audit statistics include `confirmed_author_domain_matches: 1` when an unverified email is accepted through confirmed authorship.
+The installable archive contains exactly one root folder:
 
-## Disable and uninstall
+```text
+ConferenceDiscountEligibility/
+  index.php
+  index.yaml
+  composer.json
+  vendor/autoload.php
+  src/
+  resources/
+  lang/
+  database/
+  tests/
+  documentation files
+```
 
-Disabling stops rule evaluation and UI registration on later requests. Financial snapshots and audit data are retained. Leconfe 1.4.6 does not expose a plugin pre-uninstall callback, so deleting the plugin folder does not automatically drop plugin tables.
+Do not upload the `.tar.gz`; Leconfe 1.4.6's official upload mechanism accepts ZIP only.
 
-## Post-upgrade verification
+## Post-installation checks
 
-- Open an existing Audit Log detail record.
-- Edit one test domain and confirm both identity-policy options are visible.
-- Test a verified-email account with both a Participant Payment and a Submission Payment.
-- Test an unverified account that owns or is linked as Author to a submitted work in the same scheduled conference.
-- Confirm a user with only the self-assigned Author role is rejected.
-- Confirm both payment types show the final amount, invoice line, snapshot evidence, audit entry, and Discount Payment Report type label.
-- Complete PayPal Sandbox validation before production rollout.
+- Coupon Campaigns appears under Discount Eligibility.
+- Settings contains **Allow coupon entry on payment pages**.
+- An unpaid payment page shows the Coupon section.
+- Invalid codes are rejected without changing the payment.
+- A valid winning code updates `Payment.amount`, adds a negative discount line, updates the snapshot and invoice, and creates a reserved redemption.
+- A lower code does not replace a higher existing rule.
+- A completed PayPal payment consumes the reservation and preserves PayPal metadata and receipt generation.
+
+## Deactivation and rollback
+
+Disabling the plugin hides coupon entry and stops automatic discount interception but does not delete data. Do not roll back schema version 3 on production merely to downgrade the code. Restore the pre-upgrade database backup for a full downgrade.

@@ -65,4 +65,53 @@ final class SourceContractTest extends TestCase
         self::assertStringContainsString('VerifiedEmailOrConfirmedAuthor', $resource);
         self::assertStringContainsString('VerifiedEmailOnly', $resource);
     }
+
+    public function testCouponEntryUsesOfficialPaymentDetailHook(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $plugin = (string) file_get_contents($root . '/src/ConferenceDiscountEligibilityPlugin.php');
+        $view = (string) file_get_contents($root . '/resources/views/infolists/coupon-redemption.blade.php');
+
+        self::assertStringContainsString("PaymentManager::getPaymentMethodInfolist", $plugin);
+        self::assertStringContainsString('ViewEntry::make', $plugin);
+        self::assertStringContainsString('conference-discount-coupon-redemption', $view);
+    }
+
+    public function testCouponCodesAreHashedAndNeverPersistedAsPlaintext(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $schema = (string) file_get_contents($root . '/src/Database/SchemaDefinition.php');
+        $model = (string) file_get_contents($root . '/src/Models/ConferenceDiscountCoupon.php');
+        $support = (string) file_get_contents($root . '/src/Support/CouponCode.php');
+
+        self::assertStringContainsString("char('code_hash', 64)", $schema);
+        self::assertStringContainsString("string('code_hint'", $schema);
+        self::assertStringNotContainsString("string('coupon_code'", $schema);
+        self::assertStringContainsString("'code_hash'", $model);
+        self::assertStringContainsString("hash_hmac('sha256'", $support);
+    }
+
+    public function testCouponCompletionObservesNativePaidStateWithoutReplacingPaypal(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $observer = (string) file_get_contents($root . '/src/Observers/PaymentObserver.php');
+        $manager = (string) file_get_contents($root . '/src/Managers/DiscountAwarePaymentManager.php');
+
+        self::assertStringContainsString("wasChanged('paid_at')", $observer);
+        self::assertStringContainsString('consumeForPayment', $observer);
+        self::assertStringNotContainsString('fulfillQueued', $manager);
+        self::assertStringNotContainsString('Paypal', $manager);
+    }
+
+    public function testCouponChangesAreBlockedForPaidOrInitiatedPayments(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $livewire = (string) file_get_contents($root . '/src/Livewire/CouponRedemption.php');
+        $service = (string) file_get_contents($root . '/src/Services/CouponRedemptionService.php');
+
+        self::assertStringContainsString('PaymentSafety::canRecalculate', $livewire);
+        self::assertStringContainsString('PaymentSafety::canRecalculate', $service);
+        self::assertStringContainsString('lockForUpdate', $service);
+    }
+
 }

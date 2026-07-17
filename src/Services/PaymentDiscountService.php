@@ -7,6 +7,7 @@ namespace ConferenceDiscountEligibility\Services;
 use App\Models\Payment;
 use App\Models\User;
 use ConferenceDiscountEligibility\Data\DiscountCalculation;
+use ConferenceDiscountEligibility\Data\EligibilityCandidate;
 use ConferenceDiscountEligibility\Data\EligibilitySelection;
 use ConferenceDiscountEligibility\Data\PreparedPaymentDiscount;
 use ConferenceDiscountEligibility\Enums\DiscountScope;
@@ -18,6 +19,7 @@ final class PaymentDiscountService
 {
     public function __construct(
         private readonly EligibilityResolver $resolver,
+        private readonly EligibilitySelector $selector,
         private readonly DiscountCalculator $calculator,
         private readonly SettingsRepository $settings,
     ) {}
@@ -33,6 +35,50 @@ final class PaymentDiscountService
         bool $lock = false,
     ): PreparedPaymentDiscount {
         $selection = $this->resolver->resolve($scheduledConferenceId, $user, $user?->email, now(), $lock);
+
+        return $this->prepareForSelection($scheduledConferenceId, $selection, $baseMinor, $originalTotalMinor, $additionalItems, $currency);
+    }
+
+    /** @param list<array<string, mixed>> $additionalItems */
+    public function prepareWithCandidate(
+        int $scheduledConferenceId,
+        ?User $user,
+        EligibilityCandidate $candidate,
+        int $baseMinor,
+        int $originalTotalMinor,
+        array $additionalItems,
+        string $currency,
+        bool $lock = false,
+    ): PreparedPaymentDiscount {
+        return $this->prepareWithCandidates(
+            $scheduledConferenceId,
+            $user,
+            [$candidate],
+            $baseMinor,
+            $originalTotalMinor,
+            $additionalItems,
+            $currency,
+            $lock,
+        );
+    }
+
+    /**
+     * @param list<EligibilityCandidate> $candidates
+     * @param list<array<string, mixed>> $additionalItems
+     */
+    public function prepareWithCandidates(
+        int $scheduledConferenceId,
+        ?User $user,
+        array $candidates,
+        int $baseMinor,
+        int $originalTotalMinor,
+        array $additionalItems,
+        string $currency,
+        bool $lock = false,
+    ): PreparedPaymentDiscount {
+        $automatic = $this->resolver->resolve($scheduledConferenceId, $user, $user?->email, now(), $lock);
+        $selection = $this->selector->select([...$automatic->evaluated, ...$candidates]);
+
         return $this->prepareForSelection($scheduledConferenceId, $selection, $baseMinor, $originalTotalMinor, $additionalItems, $currency);
     }
 
@@ -53,6 +99,7 @@ final class PaymentDiscountService
         if ($calculation->discountAmountMinor > 0 && $selection->winner !== null) {
             $items[] = $this->discountLine($calculation, $selection, $currency);
         }
+
         return new PreparedPaymentDiscount($selection, $calculation, $currency, $items);
     }
 
@@ -81,6 +128,7 @@ final class PaymentDiscountService
         if ($calculation->discountAmountMinor > 0 && $selection->winner !== null) {
             $items[] = $this->discountLine($calculation, $selection, $currency);
         }
+
         return new PreparedPaymentDiscount($selection, $calculation, $currency, $items);
     }
 
@@ -88,6 +136,7 @@ final class PaymentDiscountService
     private function discountLine(DiscountCalculation $calculation, EligibilitySelection $selection, string $currency): array
     {
         $winner = $selection->winner;
+
         return [
             'key' => DiscountCalculator::DISCOUNT_ITEM_KEY,
             'name' => __('ConferenceDiscountEligibility::messages.discount_line', [
@@ -98,6 +147,8 @@ final class PaymentDiscountService
             'quantity' => 1,
             'total_amount' => Money::decimalFloat(-$calculation->discountAmountMinor, $currency),
             'cde_discount_line' => true,
+            'cde_eligibility_type' => $winner?->type->value,
+            'cde_eligibility_id' => $winner?->id,
         ];
     }
 
@@ -105,6 +156,7 @@ final class PaymentDiscountService
     public function cleanAdditionalItems(Payment $payment): array
     {
         $items = $payment->getMeta('additional_items', []);
+
         return array_values(array_filter(is_array($items) ? $items : [], static fn (mixed $item): bool =>
             is_array($item)
             && ($item['key'] ?? null) !== DiscountCalculator::DISCOUNT_ITEM_KEY

@@ -2,50 +2,71 @@
 
 ## Implemented controls
 
-- Scheduled-conference scoping on every administrative query.
-- Leconfe scheduled-conference update authorization on every page/resource/action.
-- Server-only eligibility and calculation.
-- Integer minor-unit monetary arithmetic and bounded basis points.
+- Scheduled-conference scoping on administrative resources, campaign lookups, Payment Fee validation, coupon reservations, and snapshots.
+- Native Payment view policy on every coupon component request.
+- Scheduled-conference update authorization on every administrative page/resource/action.
+- Server-only eligibility, percentage selection, and monetary calculation.
+- Integer minor-unit arithmetic and bounded basis points.
 - Exact email normalization and boundary-safe domain matching.
-- Per-domain identity policy with verified email as the default.
-- Optional author fallback requires concrete same-conference submission ownership, participant/Author linkage, or exact email in the submission author list; self-assigned role and author-email metadata alone are rejected.
-- Eloquent guarded/fillable fields and server-assigned conference/actor IDs.
-- Database transactions, row locks, unique snapshot/domain/email constraints, and recursion guards.
-- Paid-payment and PayPal-completion checks before recalculation.
-- Private CSV storage, MIME/extension/size/row validation, no formula execution, and safe exports.
-- Append-only audit UI and HMAC-hashed IP when available.
-- No PayPal credentials, card data, tokens, or production personal data in the package.
-- No core or PaypalPayment file replacement.
+- Verified email as the default institutional-domain identity policy.
+- Optional author fallback requires concrete same-conference submission evidence; global self-assigned Author role alone is rejected.
+- Coupon codes normalized to a restricted alphabet and length.
+- Generated coupon codes use `random_bytes(16)`.
+- Full coupon codes stored only as keyed HMAC-SHA256 hashes; only masked hints remain visible.
+- Full generated/regenerated code displayed once to the authorized administrator.
+- Livewire coupon attempts rate-limited by user, Payment, and hashed IP context.
+- Payment, campaign, redemptions, and usage rows protected with transactions and pessimistic locks.
+- One redemption row per Payment enforced by a unique constraint.
+- Per-user and global-use limits validated under lock.
+- Existing reserved coupon included when a replacement code is evaluated, preventing downgrade by a lower code.
+- Paid, payment-method, and PayPal-metadata checks before any coupon or recalculation change.
+- Coupon reservation consumed only after native `paid_at` changes.
+- Eloquent fillable fields and server-assigned scheduled-conference/actor IDs.
+- Private CSV storage, extension/MIME/size/row validation, no formula execution, and safe CSV exports.
+- Audit log excludes coupon hash and full coupon value.
+- No PayPal credentials, card data, production tokens, or real personal data in the package.
+- No Leconfe core or PaypalPayment file replacement.
 
 ## Threat review
 
 | Threat | Control |
 |---|---|
-| IDOR / cross-conference access | scoped queries plus authorization |
-| Privilege escalation | `can('update', current scheduled conference)` gate |
-| CSRF | Filament/Livewire authenticated form actions |
-| SQL injection | Eloquent/query builder, no user-built SQL |
-| XSS | escaped Blade/Filament output; reason/notes are plain text |
-| Mass assignment | explicit fillable plus server mutation |
-| Domain spoofing | exact/boundary comparison plus verified email or explicit confirmed-author policy |
-| Author-role impersonation | the self-assignable Author role alone is never proof; the exact user must be linked to a qualifying submission in the same scheduled conference |
-| Frontend value tampering | browser values are ignored by PaymentManager calculation |
-| Duplicate payment/recalculation | unique snapshot, transaction locks, paid checks |
-| CSV abuse | private storage, validation, limit, safe export |
-| Secret disclosure | no gateway secrets read or logged |
-| Audit tampering | no UI edit/delete actions; database access remains a privileged operational boundary |
+| IDOR / cross-conference access | current-conference reload plus native Payment view policy and scoped admin queries |
+| Privilege escalation | scheduled-conference update authorization |
+| CSRF | authenticated Filament/Livewire request lifecycle |
+| SQL injection | Eloquent/query builder and fixed server-side predicates |
+| XSS | escaped Blade/Filament output; reasons and notes rendered as text |
+| Mass assignment | explicit fillable attributes and server mutation |
+| Domain spoofing | exact suffix-boundary matching plus identity policy |
+| Author-role impersonation | concrete same-conference submission evidence required |
+| Coupon guessing | 128-bit generated randomness, keyed hashes, and rate limits |
+| Coupon database disclosure | no plaintext code storage; HMAC key remains in application configuration |
+| Coupon replay | unique Payment reservation, per-user/global limits, status lifecycle |
+| Concurrent over-redemption | transaction and row locks on campaign/claims/payment |
+| Lower-code downgrade | current reserved coupon participates in winner selection |
+| Browser amount tampering | browser submits code only; amount and percentage resolved on server |
+| Repricing a paid/started payment | PaymentSafety rejects paid/method/PayPal-metadata states |
+| Duplicate coupon consumption | status transition is idempotent and only reserved rows are consumed |
+| CSV abuse | private storage, parser limits, validation, and formula-safe export |
+| Secret disclosure | no gateway secrets read or logged; code hashes excluded from audit |
+| Audit tampering | no audit edit/delete UI; database administration remains the privileged boundary |
+
+## Application-key dependency
+
+Coupon hashes are keyed by Laravel `APP_KEY`. Rotating that key invalidates existing coupon lookups. Before an intentional key rotation, replace active campaigns and redistribute new codes. The plugin does not retain recoverable plaintext codes by design.
+
+## Payment checkout race
+
+PaypalPayment 1.1.0 does not persist a checkout-start marker before redirect. A user could open PayPal and then, in another tab, attempt to change a coupon before any PayPal metadata exists. The UI warns against this, and all changes are blocked once `payment_method` or PayPal completion metadata is present. The remaining pre-return multi-tab window is a known limitation of the upstream gateway lifecycle.
 
 ## Domain author-fallback risk decision
 
-`verified_email_or_confirmed_author` is weaker than verified email and must be enabled per domain. It is intended for conferences where real authors may lack a completed email-verification timestamp. The control binds evidence to the exact authenticated user ID, the exact scheduled conference, a concrete submission relationship, and an allowed submission status. Administrators should keep `verified_email_only` for domains where email verification is operational.
+`verified_email_or_confirmed_author` is weaker than verified email and must be enabled per domain. It binds evidence to the exact user, current scheduled conference, concrete submission relation, and allowed status. Keep `verified_email_only` where email verification is operational.
 
-## Residual risks
+## Residual risks and unexecuted checks
 
-- PaypalPayment 1.1.0 stores no checkout-start marker. An administrator can recalculate an unpaid payment while a PayPal checkout is open elsewhere. Recalculation is therefore explicit and warned.
-- Leconfe 1.4.6 has no plugin uninstall callback; data is retained after folder removal.
+- Real target-panel migration, Livewire rendering, and browser behavior require installation in the authenticated Leconfe environment.
+- PayPal Sandbox completion requires secure external credentials and remains pending.
 - The production database driver and exact PHP runtime were not supplied.
-- Composer audit and a real panel/Sandbox execution require an environment with the complete release/vendor tree and secure Sandbox credentials.
-
-## Dependency audit status
-
-The source contains no third-party runtime dependency beyond packages already provided by Leconfe 1.4.6. `composer audit` was not executable in the build container because Composer and external package-network access were unavailable. This is reported as **NOT RUN**, not as passed.
+- Composer and package-network access were unavailable in the build container, so `composer audit` was **NOT RUN**, not passed.
+- PHPStan/Psalm and full PHPUnit/Pest integration against the complete Leconfe vendor tree were not executable in the available container.

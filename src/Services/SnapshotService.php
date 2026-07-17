@@ -9,6 +9,7 @@ use ConferenceDiscountEligibility\Data\EligibilityCandidate;
 use ConferenceDiscountEligibility\Data\EligibilitySelection;
 use ConferenceDiscountEligibility\Data\PreparedPaymentDiscount;
 use ConferenceDiscountEligibility\Enums\EligibilityType;
+use ConferenceDiscountEligibility\Models\ConferenceDiscountCoupon;
 use ConferenceDiscountEligibility\Models\ConferenceDiscountDomain;
 use ConferenceDiscountEligibility\Models\ConferenceDiscountEntitlement;
 use ConferenceDiscountEligibility\Models\ConferenceDiscountPaymentSnapshot;
@@ -31,6 +32,10 @@ final class SnapshotService
                 'new_final_total_minor' => $prepared->calculation->finalTotalMinor,
                 'previous_percentage_basis_points' => (int) $existing->discount_percentage_basis_points,
                 'new_percentage_basis_points' => $winner?->percentageBasisPoints ?? 0,
+                'previous_eligibility_type' => $existing->eligibility_type,
+                'new_eligibility_type' => $winner?->type->value,
+                'previous_eligibility_id' => $existing->eligibility_id,
+                'new_eligibility_id' => $winner?->id,
             ];
         }
 
@@ -48,6 +53,7 @@ final class SnapshotService
             'user_id' => $payment->user_id,
             'entitlement_id' => $winner !== null && in_array($winner->type, [EligibilityType::User, EligibilityType::Email], true) ? $winner->id : null,
             'domain_rule_id' => $winner?->type === EligibilityType::Domain ? $winner->id : null,
+            'coupon_campaign_id' => $winner?->type === EligibilityType::Coupon ? $winner->id : null,
             'original_base_amount_minor' => $prepared->calculation->originalBaseMinor,
             'discount_percentage_basis_points' => $winner?->percentageBasisPoints ?? 0,
             'base_discount_amount_minor' => $prepared->calculation->baseDiscountMinor,
@@ -83,6 +89,7 @@ final class SnapshotService
             'calculated_currency' => $snapshot->currency,
             'calculation_version' => $snapshot->calculation_version,
         ]);
+
         return $snapshot;
     }
 
@@ -117,6 +124,7 @@ final class SnapshotService
                 context: is_array($row['context'] ?? null) ? $row['context'] : [],
             );
         }
+
         return new EligibilitySelection($winner, $evaluated);
     }
 
@@ -140,15 +148,18 @@ final class SnapshotService
 
     private function changeUse(EligibilityType $type, int $id, int $delta): void
     {
-        $query = $type === EligibilityType::Domain
-            ? ConferenceDiscountDomain::query()
-            : ConferenceDiscountEntitlement::query();
+        $query = match ($type) {
+            EligibilityType::Domain => ConferenceDiscountDomain::query(),
+            EligibilityType::Coupon => ConferenceDiscountCoupon::query(),
+            default => ConferenceDiscountEntitlement::query(),
+        };
         $model = $query->lockForUpdate()->find($id);
         if ($model === null) {
             return;
         }
         if ($delta > 0) {
             $model->increment('uses_count');
+
             return;
         }
         if ((int) $model->uses_count > 0) {

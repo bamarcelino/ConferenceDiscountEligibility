@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.2.0 - 2026-07-17 - Coupon Campaigns and Payment-Page Redemption
+
+- Added Scheduled Conference **Coupon Campaigns** administration.
+- Added secure automatic code generation and custom code entry.
+- Added keyed coupon-code hashing; full codes are never stored in plaintext.
+- Added coupon validity, global usage limits, per-user limits, native payment-type scope, and optional payment-fee scope.
+- Added a Livewire coupon field to unpaid Participant Payment and Submission Payment pages through the official `PaymentManager::getPaymentMethodInfolist` hook.
+- Added server-side rate limiting and cross-conference/payment authorization checks.
+- Added transactional coupon reservation, release, replacement, and paid-payment consumption.
+- Added selection with existing automatic rules; discounts remain non-cumulative and the highest percentage wins.
+- Prevented a lower second coupon from replacing an existing higher reserved coupon.
+- Added coupon snapshots, invoice/receipt discount lines, Payment Detail state, settings toggle, and audit events.
+- Added schema version 3 and idempotent migration/rollback support.
+- Added English, Portuguese, Brazilian Portuguese, and Spanish coupon translations.
+- Kept PayPal checkout, return validation, payment completion, and transaction metadata fully delegated to Paypal Payment 1.1.0.
+
 ## 1.1.0 — 2026-07-17 — Participant and Submission Payments
 
 - Expanded automatic discount creation from participant fees to both native Leconfe 1.4.6 payment types: participant and submission fees.

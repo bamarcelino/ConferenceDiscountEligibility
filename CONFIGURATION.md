@@ -20,39 +20,67 @@ Enable subdomains only when intended.
 
 ### Domain identity verification
 
-Each domain rule has one of two policies.
+**Verified email only** is the secure default. The exact email domain must match and `email_verified_at` must be present.
 
-#### Verified email only
+**Verified email or confirmed conference author** is an explicit fallback. An unverified user is accepted only when there is concrete submission-scoped evidence in the same scheduled conference: submission owner, linked participant with Author role, or exact normalized email in the submission author list. The self-assignable global Author role alone is not sufficient.
 
-Default and strongest option. The user's exact email domain must match and `email_verified_at` must be present in Leconfe.
+## Coupon Campaigns
 
-Existing domain rules remain on this policy after upgrade to 1.0.3.
+Open **Discount Eligibility - Coupon Campaigns**.
 
-#### Verified email or confirmed conference author
+A campaign contains:
 
-Explicit fallback for installations where author accounts may not have completed email verification. An unverified user is accepted only when that exact user is:
+- campaign name;
+- secure generated code or administrator-defined code;
+- percentage and reason;
+- eligible Participant Payment and/or Submission Payment types;
+- optional restriction to selected Payment Fees;
+- validity start and end;
+- active status;
+- optional total-use limit;
+- per-user use limit;
+- notes.
 
-- the owner of a submitted work in the current scheduled conference; or
-- a linked submission participant with role `Author` in the current scheduled conference.
+### Code handling
 
-Accepted submission statuses are `Queued`, `On Review`, `On Payment`, `On Presentation`, `Editing`, and `Published`. `Incomplete`, `Payment Declined`, `Declined`, and `Withdrawn` do not establish author evidence.
+Generated codes use a generic `CDE-...` prefix and cryptographic randomness. Custom codes accept 4-64 letters, numbers, hyphens, or underscores and are case-insensitive.
 
-The self-assignable Author role alone is not accepted as identity proof. An exact normalized email in the submission author list is accepted because it is concrete submission-scoped evidence.
+The full code appears only in the persistent success notification after creation or regeneration. Copy it then. The database stores a keyed hash and a masked hint, not the full code.
+
+Do not rotate the Laravel `APP_KEY` without replacing active coupon campaigns, because the keyed hashes depend on that key.
+
+### Payment-page redemption
+
+Enable **Allow coupon entry on payment pages** in Settings. An unpaid Participant Payment or Submission Payment then shows a **Coupon** section before the payment gateway is opened.
+
+When the user applies a code, the plugin validates it on the server, compares it with all automatic rules, and applies only the highest valid percentage. Discounts never stack.
+
+Examples:
+
+- automatic domain discount 30%, coupon 40% - coupon wins;
+- direct user discount 50%, coupon 40% - user discount remains and the coupon is not reserved;
+- reserved coupon 50%, second coupon 40% - the original 50% coupon remains.
+
+A selected coupon is reserved for that payment. It is consumed when Leconfe marks the payment paid. It can be removed before payment activity begins, after which the best remaining automatic rule is recalculated.
+
+### Coupon scope
+
+The campaign's payment-type and fee restrictions decide where the code may be used. The global **Discount scope** still decides whether the percentage applies only to the base fee or also to explicitly eligible add-ons.
 
 ## Suggested presets
 
-- 40% — CLAEC active member / Institutional partner affiliate / Research4Life Group A
-- 30% — Research4Life Group B / Individual approval
+- 40% - CLAEC active member / Institutional partner affiliate / Research4Life Group A
+- 30% - Research4Life Group B / Individual approval
 
 Any percentage from 0.01% through 100.00% may be configured.
 
-## Scope
+## Discount scope
 
-Default: **Base fee only**. This applies to both participant-registration and submission fees.
+Default: **Base fee only**, for participant-registration and submission fees.
 
-Optional: **Base fee and eligible add-ons**. This affects add-ons only; participant and submission base fees are always evaluated. Enter one generated add-on key per line. Blank keys mean no add-on discount.
+Optional: **Base fee and eligible add-ons**. Enter the exact generated add-on keys. A blank list means no add-on discount.
 
-## CSV
+## CSV eligibility import
 
 Required columns:
 

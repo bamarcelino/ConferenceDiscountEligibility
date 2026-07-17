@@ -10,14 +10,16 @@ use Illuminate\Support\Facades\Schema;
 
 final class SchemaDefinition
 {
-    public const VERSION = 2;
+    public const VERSION = 3;
 
     public static function up(): void
     {
         self::settings();
         self::entitlements();
         self::domains();
+        self::coupons();
         self::snapshots();
+        self::couponRedemptions();
         self::imports();
         self::auditLogs();
         self::markSchemaVersion();
@@ -27,7 +29,9 @@ final class SchemaDefinition
     {
         Schema::dropIfExists('conference_discount_audit_logs');
         Schema::dropIfExists('conference_discount_import_batches');
+        Schema::dropIfExists('conference_discount_coupon_redemptions');
         Schema::dropIfExists('conference_discount_payment_snapshots');
+        Schema::dropIfExists('conference_discount_coupons');
         Schema::dropIfExists('conference_discount_domains');
         Schema::dropIfExists('conference_discount_entitlements');
         Schema::dropIfExists('conference_discount_settings');
@@ -36,11 +40,14 @@ final class SchemaDefinition
     private static function settings(): void
     {
         if (Schema::hasTable('conference_discount_settings')) {
-            if (! Schema::hasColumn('conference_discount_settings', 'schema_version')) {
-                Schema::table('conference_discount_settings', function (Blueprint $table): void {
+            Schema::table('conference_discount_settings', function (Blueprint $table): void {
+                if (! Schema::hasColumn('conference_discount_settings', 'schema_version')) {
                     $table->unsignedSmallInteger('schema_version')->default(self::VERSION);
-                });
-            }
+                }
+                if (! Schema::hasColumn('conference_discount_settings', 'coupon_redemption_enabled')) {
+                    $table->boolean('coupon_redemption_enabled')->default(true);
+                }
+            });
 
             return;
         }
@@ -52,6 +59,7 @@ final class SchemaDefinition
             $table->json('eligible_add_on_keys')->nullable();
             $table->boolean('recalculate_unpaid_default')->default(false);
             $table->boolean('notify_on_recalculation')->default(false);
+            $table->boolean('coupon_redemption_enabled')->default(true);
             $table->unsignedInteger('csv_max_bytes')->default(5242880);
             $table->unsignedSmallInteger('schema_version')->default(self::VERSION);
             $table->timestamps();
@@ -140,9 +148,52 @@ final class SchemaDefinition
         });
     }
 
+    private static function coupons(): void
+    {
+        if (Schema::hasTable('conference_discount_coupons')) {
+            return;
+        }
+
+        Schema::create('conference_discount_coupons', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('scheduled_conference_id');
+            $table->string('name');
+            $table->char('code_hash', 64);
+            $table->string('code_hint', 32);
+            $table->unsignedSmallInteger('percentage_basis_points');
+            $table->string('reason');
+            $table->text('notes')->nullable();
+            $table->json('eligible_payment_types');
+            $table->json('eligible_payment_fee_ids')->nullable();
+            $table->timestamp('valid_from')->nullable();
+            $table->timestamp('valid_until')->nullable();
+            $table->boolean('active')->default(true);
+            $table->unsignedInteger('maximum_uses')->nullable();
+            $table->unsignedInteger('per_user_limit')->default(1);
+            $table->unsignedInteger('uses_count')->default(0);
+            $table->unsignedBigInteger('created_by')->nullable();
+            $table->unsignedBigInteger('updated_by')->nullable();
+            $table->timestamps();
+
+            $table->unique(['scheduled_conference_id', 'code_hash'], 'cde_coupon_sc_hash_unique');
+            $table->index(['scheduled_conference_id', 'active', 'valid_from', 'valid_until'], 'cde_coupon_lookup_idx');
+            $table->foreign('scheduled_conference_id', 'cde_coupon_sc_fk')->references('id')->on('scheduled_conferences')->cascadeOnDelete();
+            $table->foreign('created_by', 'cde_coupon_created_fk')->references('id')->on('users')->nullOnDelete();
+            $table->foreign('updated_by', 'cde_coupon_updated_fk')->references('id')->on('users')->nullOnDelete();
+        });
+    }
+
     private static function snapshots(): void
     {
         if (Schema::hasTable('conference_discount_payment_snapshots')) {
+            if (! Schema::hasColumn('conference_discount_payment_snapshots', 'coupon_campaign_id')) {
+                Schema::table('conference_discount_payment_snapshots', function (Blueprint $table): void {
+                    $table->unsignedBigInteger('coupon_campaign_id')->nullable()->after('domain_rule_id');
+                    $table->foreign('coupon_campaign_id', 'cde_snapshot_coupon_fk')
+                        ->references('id')->on('conference_discount_coupons')->nullOnDelete();
+                });
+            }
+
             return;
         }
 
@@ -153,6 +204,7 @@ final class SchemaDefinition
             $table->unsignedBigInteger('user_id')->nullable();
             $table->unsignedBigInteger('entitlement_id')->nullable();
             $table->unsignedBigInteger('domain_rule_id')->nullable();
+            $table->unsignedBigInteger('coupon_campaign_id')->nullable();
             $table->unsignedBigInteger('original_base_amount_minor');
             $table->unsignedSmallInteger('discount_percentage_basis_points')->default(0);
             $table->unsignedBigInteger('base_discount_amount_minor')->default(0);
@@ -179,6 +231,36 @@ final class SchemaDefinition
             $table->foreign('user_id', 'cde_snapshot_user_fk')->references('id')->on('users')->nullOnDelete();
             $table->foreign('entitlement_id', 'cde_snapshot_ent_fk')->references('id')->on('conference_discount_entitlements')->nullOnDelete();
             $table->foreign('domain_rule_id', 'cde_snapshot_domain_fk')->references('id')->on('conference_discount_domains')->nullOnDelete();
+            $table->foreign('coupon_campaign_id', 'cde_snapshot_coupon_fk')->references('id')->on('conference_discount_coupons')->nullOnDelete();
+        });
+    }
+
+    private static function couponRedemptions(): void
+    {
+        if (Schema::hasTable('conference_discount_coupon_redemptions')) {
+            return;
+        }
+
+        Schema::create('conference_discount_coupon_redemptions', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('scheduled_conference_id');
+            $table->unsignedBigInteger('coupon_campaign_id');
+            $table->unsignedBigInteger('payment_id');
+            $table->unsignedBigInteger('user_id')->nullable();
+            $table->string('status', 16)->default('reserved');
+            $table->timestamp('reserved_at')->nullable();
+            $table->timestamp('consumed_at')->nullable();
+            $table->timestamp('released_at')->nullable();
+            $table->json('metadata')->nullable();
+            $table->timestamps();
+
+            $table->unique('payment_id', 'cde_coupon_redemption_payment_unique');
+            $table->index(['coupon_campaign_id', 'status'], 'cde_coupon_redemption_campaign_status_idx');
+            $table->index(['user_id', 'coupon_campaign_id', 'status'], 'cde_coupon_redemption_user_idx');
+            $table->foreign('scheduled_conference_id', 'cde_coupon_redemption_sc_fk')->references('id')->on('scheduled_conferences')->cascadeOnDelete();
+            $table->foreign('coupon_campaign_id', 'cde_coupon_redemption_coupon_fk')->references('id')->on('conference_discount_coupons')->cascadeOnDelete();
+            $table->foreign('payment_id', 'cde_coupon_redemption_payment_fk')->references('id')->on('payments')->cascadeOnDelete();
+            $table->foreign('user_id', 'cde_coupon_redemption_user_fk')->references('id')->on('users')->nullOnDelete();
         });
     }
 
@@ -241,6 +323,7 @@ final class SchemaDefinition
             $table->foreign('affected_user_id', 'cde_audit_affected_fk')->references('id')->on('users')->nullOnDelete();
         });
     }
+
     private static function markSchemaVersion(): void
     {
         if (! Schema::hasTable('conference_discount_settings')
@@ -252,5 +335,4 @@ final class SchemaDefinition
             ->where('schema_version', '<', self::VERSION)
             ->update(['schema_version' => self::VERSION]);
     }
-
 }
