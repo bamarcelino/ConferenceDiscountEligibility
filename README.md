@@ -11,6 +11,7 @@
 - CSV preview, dry run, validation, duplicate strategy, import report, and safe exports.
 - Coupon Campaigns with automatically generated or administrator-defined codes.
 - Coupon percentage, reason, validity, global-use limit, per-user limit, native payment-type scope, and optional payment-fee restrictions.
+- Organization-neutral reason choices, required administrator-defined text for **Other**, and optional details for every choice.
 - Coupon entry directly on unpaid Participant Payment and Submission Payment pages before the payment gateway is opened.
 - Automatic zero-value completion for 100% discounts, with no PayPal checkout and with invoice, receipt, confirmation, snapshot, and audit preservation.
 - Server-side coupon validation, attempt throttling, transactional reservation, release, replacement, and consumption.
@@ -39,17 +40,17 @@ Rotating the Laravel `APP_KEY` invalidates existing coupon hashes. Export or rep
 
 ## Package choice
 
-Use `ConferenceDiscountEligibility-1.2.1.zip` in Leconfe's **Upload Plugin** action. Leconfe 1.4.6 accepts ZIP packages only. The `.tar.gz` is a supplemental archive and is not the panel-upload file.
+Use `ConferenceDiscountEligibility-1.3.0.zip` in Leconfe's **Upload Plugin** action. Leconfe 1.4.6 accepts ZIP packages only.
 
 ## Upgrade behavior
 
-Version 1.2.1 has no schema migration. It retains schema version 3 from 1.2.0 and adds safe automatic completion for final totals of exactly zero. Existing rules, coupon campaigns, reservations, payments, snapshots, invoices, receipts, and audit logs are preserved. See `UPGRADE-1.2.1.md`.
+Version 1.3.0 marks the plugin as sitewide for discovery and enablement, while its functionality remains limited to Scheduled Conference panels. It is enabled by default after upload, so the same state is used across Leconfe's administration, conference, and scheduled-conference contexts. It also replaces CLAEC-specific presets with generic reason choices. No schema migration is required; existing reason strings remain unchanged and legacy values are mapped without dropping their original wording when edited. See `UPGRADE-1.3.0.md`.
 
 ## Validation status
 
-The automatic discount path has already been exercised successfully in the real target installation, including participant and submission amounts, Payment Detail, Audit Log, and invoice output. Version 1.2.1 has been subjected to the isolated tests, source-contract checks, entrypoint/runtime simulations, syntax lint, secret scan, and archive extraction checks recorded in `VALIDATION_REPORT.md`.
+The automatic discount path has already been exercised successfully in the real target installation, including participant and submission amounts, Payment Detail, Audit Log, and invoice output. Version 1.3.0 has been subjected to the isolated tests, source-contract checks, Leconfe 1.4.6 discovery review, entrypoint/runtime simulations, syntax lint, secret scan, and archive extraction checks recorded in `VALIDATION_REPORT.md`.
 
-The 1.2.1 zero-total completion path and the 1.2.0 coupon UI/schema still require installation and end-to-end validation in the authenticated target panel. PayPal Sandbox remains **PENDING EXTERNAL CREDENTIALS**.
+The new upload/discovery behavior and reason UI still require end-to-end validation in the authenticated target panel. PayPal Sandbox remains **PENDING EXTERNAL CREDENTIALS**.
 
 ## Documentation
 
@@ -58,7 +59,7 @@ The 1.2.1 zero-total completion path and the 1.2.0 coupon UI/schema still requir
 - `INSTALLATION.md`
 - `CONFIGURATION.md`
 - `SECURITY.md`
-- `UPGRADE-1.2.1.md`
+- `UPGRADE-1.3.0.md`
 - `VALIDATION_REPORT.md`
 - `CHANGELOG.md`
 

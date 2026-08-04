@@ -12,6 +12,7 @@ use ConferenceDiscountEligibility\Services\RecalculationCoordinator;
 use ConferenceDiscountEligibility\Services\SettingsRepository;
 use ConferenceDiscountEligibility\Support\Percentage;
 use ConferenceDiscountEligibility\Support\RecalculationFeedback;
+use ConferenceDiscountEligibility\Support\ReasonForm;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -35,7 +36,7 @@ final class InstitutionalDomainResource extends Resource
         return $form->schema([
             Forms\Components\TextInput::make('original_domain')->label(__('ConferenceDiscountEligibility::messages.domain'))->placeholder('universidade.edu')->required()->maxLength(253),
             Forms\Components\TextInput::make('percentage')->label(__('ConferenceDiscountEligibility::messages.percentage'))->numeric()->minValue(0.01)->maxValue(100)->step(0.01)->datalist(['40','30'])->suffix('%')->required(),
-            Forms\Components\TextInput::make('reason')->label(__('ConferenceDiscountEligibility::messages.reason'))->datalist(IndividualEntitlementResource::reasonPresets())->required()->maxLength(255),
+            ...ReasonForm::fields(),
             Forms\Components\Toggle::make('include_subdomains')->label(__('ConferenceDiscountEligibility::messages.include_subdomains'))->default(false),
             Forms\Components\Radio::make('identity_policy')
                 ->label(__('ConferenceDiscountEligibility::messages.domain_identity_policy'))

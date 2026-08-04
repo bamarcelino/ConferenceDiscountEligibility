@@ -1,4 +1,4 @@
-# ARCHITECTURE - Conference Discount Eligibility 1.2.1
+# ARCHITECTURE - Conference Discount Eligibility 1.3.0
 
 ## Architectural goals
 
@@ -255,6 +255,12 @@ Administrative resources require the scheduled-conference update authorization u
 Schema version 3 is installed idempotently under a cache lock. It creates coupon tables and adds missing coupon columns to existing settings and snapshots. Foreign keys, unique constraints, lookup indexes, and a reverse-order `down()` are provided.
 
 Disabling the plugin leaves schema and data intact. A production downgrade should restore a database backup rather than dropping coupon structures beneath existing coupon snapshots.
+
+## Plugin discovery and reason compatibility
+
+Leconfe 1.4.6 discovers a plugin only when the extracted root folder contains both `index.yaml` and `index.php`. Its enabled setting is normally scoped to the current panel context, and `PluginManager::initialize()` checks that setting directly with a `false` default before booting. Version 1.3.0 declares `sitewide: true` and initializes a missing sitewide `enabled` setting during `load()`, before the manager performs that boot decision. Upload/enable state is therefore shared across every panel context and the plugin boots in the same discovery cycle. An explicitly stored `false` value is never overwritten. `onPanel()` still registers resources only for `scheduledConference`.
+
+Reasons continue to use the existing 255-character `reason` column, so no migration or snapshot rewrite is necessary. The form stores a canonical generic label plus optional details. Legacy CLAEC/Research4Life values are parsed into a generic category while retaining the exact original value as details; unknown values become custom **Other** reasons.
 
 ## Compatibility boundary
 
