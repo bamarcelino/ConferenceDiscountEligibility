@@ -77,7 +77,7 @@ final class SourceContractTest extends TestCase
         self::assertStringContainsString('conference-discount-coupon-redemption', $view);
     }
 
-    public function testCouponCodesAreHashedAndNeverPersistedAsPlaintext(): void
+    public function testCouponCodesAreHashedForLookupAndEncryptedForAuthorizedRecovery(): void
     {
         $root = dirname(__DIR__, 2);
         $schema = (string) file_get_contents($root . '/src/Database/SchemaDefinition.php');
@@ -86,9 +86,24 @@ final class SourceContractTest extends TestCase
 
         self::assertStringContainsString("char('code_hash', 64)", $schema);
         self::assertStringContainsString("string('code_hint'", $schema);
+        self::assertStringContainsString("text('code_encrypted')", $schema);
         self::assertStringNotContainsString("string('coupon_code'", $schema);
         self::assertStringContainsString("'code_hash'", $model);
+        self::assertStringContainsString("'code_encrypted' => 'encrypted'", $model);
         self::assertStringContainsString("hash_hmac('sha256'", $support);
+    }
+
+    public function testReasonHiddenFieldUsesOnlyFilamentHiddenCompatibleMethods(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $source = (string) file_get_contents($root . '/src/Support/ReasonForm.php');
+        $hiddenField = strstr($source, "Forms\\Components\\Hidden::make('reason')");
+
+        self::assertIsString($hiddenField);
+        $hiddenField = strstr($hiddenField, "Forms\\Components\\Select::make('reason_code')", true);
+        self::assertIsString($hiddenField);
+        self::assertStringContainsString('->required()', $hiddenField);
+        self::assertStringNotContainsString('->maxLength(', $hiddenField);
     }
 
     public function testCouponCompletionObservesNativePaidStateWithoutReplacingPaypal(): void

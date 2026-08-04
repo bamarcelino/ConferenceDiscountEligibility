@@ -1,4 +1,4 @@
-# ARCHITECTURE - Conference Discount Eligibility 1.3.0
+# ARCHITECTURE - Conference Discount Eligibility 1.3.1
 
 ## Architectural goals
 
@@ -252,7 +252,9 @@ Administrative resources require the scheduled-conference update authorization u
 
 ## Schema lifecycle
 
-Schema version 3 is installed idempotently under a cache lock. It creates coupon tables and adds missing coupon columns to existing settings and snapshots. Foreign keys, unique constraints, lookup indexes, and a reverse-order `down()` are provided.
+Schema version 4 is installed idempotently under a cache lock. It retains coupon tables and adds the nullable `code_encrypted` column used for authenticated-encrypted administrative recovery. Foreign keys, unique constraints, lookup indexes, and a reverse-order `down()` are provided.
+
+Coupon redemption continues to normalize and keyed-hash the submitted code; the encrypted value is never queried by the payment flow. Filament's authorized Coupon Campaign action decrypts only on explicit reveal. The encrypted attribute and hash are hidden from model serialization and removed from audit changes. Legacy rows remain nullable because a one-way hash cannot reconstruct their original code.
 
 Disabling the plugin leaves schema and data intact. A production downgrade should restore a database backup rather than dropping coupon structures beneath existing coupon snapshots.
 

@@ -12,7 +12,7 @@ use RuntimeException;
 
 final class SchemaInstaller
 {
-    private const LOCK_NAME = 'conference-discount-eligibility-schema-v3';
+    private const LOCK_NAME = 'conference-discount-eligibility-schema-v4';
 
     public function install(): void
     {
@@ -60,6 +60,7 @@ final class SchemaInstaller
         return Schema::hasColumn('conference_discount_domains', 'identity_policy')
             && Schema::hasColumn('conference_discount_settings', 'schema_version')
             && Schema::hasColumn('conference_discount_settings', 'coupon_redemption_enabled')
+            && Schema::hasColumn('conference_discount_coupons', 'code_encrypted')
             && Schema::hasColumn('conference_discount_payment_snapshots', 'coupon_campaign_id');
     }
 

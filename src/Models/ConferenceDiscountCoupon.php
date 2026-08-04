@@ -23,6 +23,7 @@ final class ConferenceDiscountCoupon extends Model
         'name',
         'code_hash',
         'code_hint',
+        'code_encrypted',
         'percentage_basis_points',
         'percentage',
         'reason',
@@ -40,6 +41,7 @@ final class ConferenceDiscountCoupon extends Model
     ];
 
     protected $casts = [
+        'code_encrypted' => 'encrypted',
         'percentage_basis_points' => 'integer',
         'eligible_payment_types' => 'array',
         'eligible_payment_fee_ids' => 'array',
@@ -49,6 +51,11 @@ final class ConferenceDiscountCoupon extends Model
         'maximum_uses' => 'integer',
         'per_user_limit' => 'integer',
         'uses_count' => 'integer',
+    ];
+
+    protected $hidden = [
+        'code_hash',
+        'code_encrypted',
     ];
 
     protected static function booted(): void

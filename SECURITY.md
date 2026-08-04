@@ -12,8 +12,8 @@
 - Optional author fallback requires concrete same-conference submission evidence; global self-assigned Author role alone is rejected.
 - Coupon codes normalized to a restricted alphabet and length.
 - Generated coupon codes use `random_bytes(16)`.
-- Full coupon codes stored only as keyed HMAC-SHA256 hashes; only masked hints remain visible.
-- Full generated/regenerated code displayed once to the authorized administrator.
+- Coupon redemption uses keyed HMAC-SHA256 hashes; masked hints remain visible in ordinary tables.
+- Full codes created from 1.3.1 onward are additionally protected by Laravel authenticated encryption and revealed only through an explicit authorized administrator action.
 - Livewire coupon attempts rate-limited by user, Payment, and hashed IP context.
 - Payment, campaign, redemptions, and usage rows protected with transactions and pessimistic locks.
 - One redemption row per Payment enforced by a unique constraint.
@@ -40,7 +40,7 @@
 | Domain spoofing | exact suffix-boundary matching plus identity policy |
 | Author-role impersonation | concrete same-conference submission evidence required |
 | Coupon guessing | 128-bit generated randomness, keyed hashes, and rate limits |
-| Coupon database disclosure | no plaintext code storage; HMAC key remains in application configuration |
+| Coupon database disclosure | no plaintext code storage; keyed hash plus authenticated ciphertext depend on protected application configuration |
 | Coupon replay | unique Payment reservation, per-user/global limits, status lifecycle |
 | Concurrent over-redemption | transaction and row locks on campaign/claims/payment |
 | Lower-code downgrade | current reserved coupon participates in winner selection |
@@ -53,7 +53,7 @@
 
 ## Application-key dependency
 
-Coupon hashes are keyed by Laravel `APP_KEY`. Rotating that key invalidates existing coupon lookups. Before an intentional key rotation, replace active campaigns and redistribute new codes. The plugin does not retain recoverable plaintext codes by design.
+Coupon hashes and encrypted recovery are keyed by Laravel `APP_KEY`. Rotating that key invalidates existing coupon lookups and prevents decryption of stored recovery values. Before an intentional key rotation, replace active campaigns and redistribute new codes. Full codes are never stored as plaintext.
 
 ## Payment checkout race
 

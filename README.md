@@ -10,6 +10,7 @@
 - Optional confirmed-author evidence for unverified institutional emails in the same scheduled conference.
 - CSV preview, dry run, validation, duplicate strategy, import report, and safe exports.
 - Coupon Campaigns with automatically generated or administrator-defined codes.
+- Authorized administrators can reveal securely encrypted coupon codes again from the campaign list.
 - Coupon percentage, reason, validity, global-use limit, per-user limit, native payment-type scope, and optional payment-fee restrictions.
 - Organization-neutral reason choices, required administrator-defined text for **Other**, and optional details for every choice.
 - Coupon entry directly on unpaid Participant Payment and Submission Payment pages before the payment gateway is opened.
@@ -28,8 +29,9 @@ The self-assignable Leconfe `Author` account role alone is not treated as proof.
 ## Coupon security model
 
 - Full codes are normalized and keyed-hashed with the Laravel application key.
-- Only the hash and a masked hint are stored.
-- A generated or regenerated full code is displayed once to the administrator.
+- The keyed hash is used for redemption lookup; an authenticated-encrypted copy is stored only for authorized administrative recovery.
+- Generated, manually entered, and regenerated codes can be revealed again from Coupon Campaigns.
+- Campaigns created before 1.3.1 retain their hash and remain valid, but must be regenerated once before their full code can be revealed.
 - A coupon is reserved only when it wins against every other valid rule.
 - A lower second coupon cannot replace an already reserved higher coupon.
 - A coupon is consumed when Leconfe changes the payment to paid.
@@ -40,15 +42,15 @@ Rotating the Laravel `APP_KEY` invalidates existing coupon hashes. Export or rep
 
 ## Package choice
 
-Use `ConferenceDiscountEligibility-1.3.0.zip` in Leconfe's **Upload Plugin** action. Leconfe 1.4.6 accepts ZIP packages only.
+Use `ConferenceDiscountEligibility-1.3.1.zip` in Leconfe's **Upload Plugin** action. Leconfe 1.4.6 accepts ZIP packages only.
 
 ## Upgrade behavior
 
-Version 1.3.0 marks the plugin as sitewide for discovery and enablement, while its functionality remains limited to Scheduled Conference panels. It is enabled by default after upload, so the same state is used across Leconfe's administration, conference, and scheduled-conference contexts. It also replaces CLAEC-specific presets with generic reason choices. No schema migration is required; existing reason strings remain unchanged and legacy values are mapped without dropping their original wording when edited. See `UPGRADE-1.3.0.md`.
+Version 1.3.1 adds schema version 4 with a nullable authenticated-encrypted coupon-code column. Existing campaigns and redemptions are preserved. Older campaign codes remain valid but cannot be recovered retrospectively; regenerate an unused legacy campaign once to enable future reveal. See `UPGRADE-1.3.1.md`.
 
 ## Validation status
 
-The automatic discount path has already been exercised successfully in the real target installation, including participant and submission amounts, Payment Detail, Audit Log, and invoice output. Version 1.3.0 has been subjected to the isolated tests, source-contract checks, Leconfe 1.4.6 discovery review, entrypoint/runtime simulations, syntax lint, secret scan, and archive extraction checks recorded in `VALIDATION_REPORT.md`.
+The automatic discount path has already been exercised successfully in the real target installation, including participant and submission amounts, Payment Detail, Audit Log, and invoice output. Version 1.3.1 has been subjected to the isolated tests, source-contract checks, Leconfe 1.4.6 discovery review, entrypoint/runtime simulations, syntax lint, secret scan, and archive extraction checks recorded in `VALIDATION_REPORT.md`.
 
 The new upload/discovery behavior and reason UI still require end-to-end validation in the authenticated target panel. PayPal Sandbox remains **PENDING EXTERNAL CREDENTIALS**.
 
@@ -59,7 +61,7 @@ The new upload/discovery behavior and reason UI still require end-to-end validat
 - `INSTALLATION.md`
 - `CONFIGURATION.md`
 - `SECURITY.md`
-- `UPGRADE-1.3.0.md`
+- `UPGRADE-1.3.1.md`
 - `VALIDATION_REPORT.md`
 - `CHANGELOG.md`
 

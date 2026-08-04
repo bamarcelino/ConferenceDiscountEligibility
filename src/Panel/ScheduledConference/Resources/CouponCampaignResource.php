@@ -124,6 +124,44 @@ final class CouponCampaignResource extends Resource
             Tables\Filters\TernaryFilter::make('active')->label(__('ConferenceDiscountEligibility::messages.active')),
         ])->actions([
             Tables\Actions\EditAction::make(),
+            Tables\Actions\Action::make('reveal_code')
+                ->label(__('ConferenceDiscountEligibility::messages.coupon_reveal_code'))
+                ->icon('heroicon-o-eye')
+                ->color('gray')
+                ->visible(static fn (ConferenceDiscountCoupon $record): bool => $record->getRawOriginal('code_encrypted') !== null)
+                ->action(static function (ConferenceDiscountCoupon $record): void {
+                    try {
+                        $code = (string) $record->getAttribute('code_encrypted');
+                    } catch (\Throwable) {
+                        Notification::make()
+                            ->danger()
+                            ->title(__('ConferenceDiscountEligibility::messages.coupon_code_unavailable'))
+                            ->body(__('ConferenceDiscountEligibility::messages.coupon_code_decryption_failed'))
+                            ->send();
+
+                        return;
+                    }
+
+                    Notification::make()
+                        ->success()
+                        ->persistent()
+                        ->title(__('ConferenceDiscountEligibility::messages.coupon_code_revealed'))
+                        ->body(__('ConferenceDiscountEligibility::messages.coupon_code_reveal_value', ['code' => $code]))
+                        ->send();
+                }),
+            Tables\Actions\Action::make('code_unavailable')
+                ->label(__('ConferenceDiscountEligibility::messages.coupon_code_unavailable'))
+                ->icon('heroicon-o-eye-slash')
+                ->color('gray')
+                ->visible(static fn (ConferenceDiscountCoupon $record): bool => $record->getRawOriginal('code_encrypted') === null)
+                ->action(static function (): void {
+                    Notification::make()
+                        ->warning()
+                        ->persistent()
+                        ->title(__('ConferenceDiscountEligibility::messages.coupon_code_unavailable'))
+                        ->body(__('ConferenceDiscountEligibility::messages.coupon_legacy_code_help'))
+                        ->send();
+                }),
             Tables\Actions\Action::make('regenerate_code')
                 ->label(__('ConferenceDiscountEligibility::messages.coupon_regenerate_code'))
                 ->icon('heroicon-o-arrow-path')
@@ -135,12 +173,13 @@ final class CouponCampaignResource extends Resource
                     $record->update([
                         'code_hash' => CouponCode::hash($code),
                         'code_hint' => CouponCode::hint($code),
+                        'code_encrypted' => $code,
                     ]);
                     Notification::make()
                         ->success()
                         ->persistent()
                         ->title(__('ConferenceDiscountEligibility::messages.coupon_code_generated'))
-                        ->body(__('ConferenceDiscountEligibility::messages.coupon_copy_now', ['code' => $code]))
+                        ->body(__('ConferenceDiscountEligibility::messages.coupon_code_reveal_value', ['code' => $code]))
                         ->send();
                 }),
             Tables\Actions\DeleteAction::make()

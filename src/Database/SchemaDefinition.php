@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Schema;
 
 final class SchemaDefinition
 {
-    public const VERSION = 3;
+    public const VERSION = 4;
 
     public static function up(): void
     {
@@ -151,6 +151,12 @@ final class SchemaDefinition
     private static function coupons(): void
     {
         if (Schema::hasTable('conference_discount_coupons')) {
+            if (! Schema::hasColumn('conference_discount_coupons', 'code_encrypted')) {
+                Schema::table('conference_discount_coupons', function (Blueprint $table): void {
+                    $table->text('code_encrypted')->nullable()->after('code_hint');
+                });
+            }
+
             return;
         }
 
@@ -160,6 +166,7 @@ final class SchemaDefinition
             $table->string('name');
             $table->char('code_hash', 64);
             $table->string('code_hint', 32);
+            $table->text('code_encrypted')->nullable();
             $table->unsignedSmallInteger('percentage_basis_points');
             $table->string('reason');
             $table->text('notes')->nullable();
