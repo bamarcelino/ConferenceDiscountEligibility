@@ -1,0 +1,4 @@
+/artifacts/
+/vendor/
+/tests/results/
+/.phpunit.cache/

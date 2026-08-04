@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.3.0 - 2026-08-04 - Reliable Discovery and Generic Reasons
+
+- Marked the plugin manifest as sitewide so Leconfe 1.4.6 uses one enablement record across administration, conference, and scheduled-conference contexts.
+- Enabled the plugin by default after upload and added a guarded plugin-page link, removing the need for a saved/direct URL to make the installation visible.
+- Kept all operational resources and queries restricted to Scheduled Conference panels.
+- Added a defensive entrypoint error for source archives that do not contain the release autoloader.
+- Replaced CLAEC-specific reason presets with nine generic choices suitable for any organization.
+- Added mandatory administrator text when **Other** is selected and optional details for every reason.
+- Mapped CLAEC and Research4Life legacy values to generic categories while retaining the original text; arbitrary historical values remain available as custom reasons.
+- Added English, Brazilian Portuguese, Portuguese, and Spanish translations and reason compatibility tests.
+- No schema migration is required; existing rules, snapshots, coupons, reports, and audit records are unchanged.
+
 ## 1.2.1 - 2026-07-17 - Automatic Completion for 100% Discounts
 
 - Added automatic completion when a valid automatic rule or coupon reduces the complete native Payment total to zero.

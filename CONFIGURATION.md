@@ -4,6 +4,24 @@
 
 Select an existing user and configure percentage, reason, validity, status, notes, and optional maximum uses. The entitlement is linked to the exact `users.id`.
 
+## Reasons
+
+The same organization-neutral choices are available for individual users, email lists, institutional domains, and coupon campaigns:
+
+- Active member
+- Institutional partner
+- Country-based waiver
+- Research support program
+- Financial hardship
+- Promotional campaign
+- Editorial decision
+- Individual approval
+- Other
+
+Selecting **Other** makes **Custom reason** mandatory. **Additional reason details** is optional for every choice. Stored reason text remains suitable for snapshots, invoices, reports, CSV exports, and audit history.
+
+Existing values are not rewritten during upgrade. When an old CLAEC/Research4Life preset is edited, it is mapped to the closest generic category and its exact original text is retained in the details field. Any unrecognized historical value is treated as a custom **Other** reason.
+
 ## Email Lists
 
 Enter an exact email address. Matching is trim-normalized and case-insensitive. The original address remains available for display. When a matching user exists or later uses that account, the record is linked to the user.
@@ -67,12 +85,7 @@ A selected coupon is reserved for that payment. It is consumed when Leconfe mark
 
 The campaign's payment-type and fee restrictions decide where the code may be used. The global **Discount scope** still decides whether the percentage applies only to the base fee or also to explicitly eligible add-ons.
 
-## Suggested presets
-
-- 40% - CLAEC active member / Institutional partner affiliate / Research4Life Group A
-- 30% - Research4Life Group B / Individual approval
-
-Any percentage from 0.01% through 100.00% may be configured.
+Any percentage from 0.01% through 100.00% may be configured independently of the selected reason.
 
 ## Discount scope
 

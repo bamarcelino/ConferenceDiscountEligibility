@@ -42,11 +42,28 @@ use Filament\Support\Facades\FilamentView;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Notifications\Events\NotificationSending;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Route;
 use Livewire\Livewire;
 
 final class ConferenceDiscountEligibilityPlugin extends Plugin
 {
     private static bool $bootedOnce = false;
+
+    public function load(): static
+    {
+        parent::load();
+
+        if ($this->getSetting('enabled') === null) {
+            $this->updateSetting('enabled', true);
+        }
+
+        return $this;
+    }
+
+    public function isEnabled(): bool
+    {
+        return (bool) $this->getSetting('enabled', true);
+    }
 
     public function boot()
     {
@@ -95,6 +112,19 @@ final class ConferenceDiscountEligibilityPlugin extends Plugin
                 DiscountCsvImport::class,
                 DiscountSettings::class,
             ]);
+    }
+
+    public function getPluginPage(): ?string
+    {
+        if (! app()->getCurrentScheduledConference()) {
+            return null;
+        }
+
+        try {
+            return Route::has(DiscountSettings::getRouteName()) ? DiscountSettings::getUrl() : null;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private function registerPaymentDetailHook(): void

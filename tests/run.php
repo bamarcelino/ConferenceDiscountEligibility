@@ -24,6 +24,7 @@ use ConferenceDiscountEligibility\Support\Money;
 use ConferenceDiscountEligibility\Support\PaypalAmountContract;
 use ConferenceDiscountEligibility\Support\Percentage;
 use ConferenceDiscountEligibility\Support\RuleValidity;
+use ConferenceDiscountEligibility\Support\ReasonOptions;
 
 $root = dirname(__DIR__);
 $tests = [];
@@ -165,7 +166,7 @@ $tests['27 completed payment is never altered'] = function () use ($contains): v
     $contains('src/Services/RecalculationCoordinator.php', '$payment->isPaid()');
 };
 $tests['28 valid CSV sample'] = function () use ($assert, $root): void {
-    $rows = array_map('str_getcsv', file($root . '/sample-discount-import.csv', FILE_IGNORE_NEW_LINES));
+    $rows = array_map(static fn (string $line): array => str_getcsv($line, ',', '"', '\\'), file($root . '/sample-discount-import.csv', FILE_IGNORE_NEW_LINES));
     $assert(count($rows) >= 3); $assert($rows[0] === ['email','discount_percentage','reason','valid_from','valid_until','notes']);
 };
 $tests['29 partially invalid CSV handling contract'] = function () use ($contains): void {
@@ -387,8 +388,8 @@ $tests['67 all locales describe participant and submission recalculation'] = fun
     $contains('lang/es/messages.php', 'participante y de envío');
     $contains('lang/pt-BR/messages.php', 'participante e de submissão');
 };
-$tests['68 version 1.2.1 retains coupons on payment pages'] = function () use ($contains): void {
-    $contains('index.yaml', 'version: "1.2.1"');
+$tests['68 current version retains coupons on payment pages'] = function () use ($contains): void {
+    $contains('index.yaml', 'version: "1.3.0"');
     $contains('CHANGELOG.md', 'Coupon Campaigns and Payment-Page Redemption');
     $contains('ARCHITECTURE.md', 'PaymentManager::getPaymentMethodInfolist');
 };
@@ -565,8 +566,8 @@ $tests['99 migration and installer require every coupon structure'] = function (
     $contains('src/Services/SchemaInstaller.php', "'conference_discount_coupon_redemptions'");
     $contains('src/Services/SchemaInstaller.php', "hasColumn('conference_discount_payment_snapshots', 'coupon_campaign_id')");
 };
-$tests['100 plugin 1.2.1 includes coupon campaign administration and payment-page redemption'] = function () use ($contains): void {
-    $contains('index.yaml', 'version: "1.2.1"');
+$tests['100 current plugin includes coupon campaign administration and payment-page redemption'] = function () use ($contains): void {
+    $contains('index.yaml', 'version: "1.3.0"');
     $contains('src/ConferenceDiscountEligibilityPlugin.php', 'CouponCampaignResource::class');
     $contains('src/ConferenceDiscountEligibilityPlugin.php', "Livewire::component('conference-discount-coupon-redemption'");
     $contains('UPGRADE-1.2.1.md', '100%');
@@ -640,10 +641,41 @@ $tests['113 payment page explains that no gateway is required'] = function () us
         $contains($path, "'full_discount_no_payment_required'");
     }
 };
-$tests['114 version 1.2.1 documents automatic completion for zero totals'] = function () use ($contains): void {
-    $contains('index.yaml', 'version: "1.2.1"');
+$tests['114 current version retains automatic completion for zero totals'] = function () use ($contains): void {
+    $contains('index.yaml', 'version: "1.3.0"');
     $contains('CHANGELOG.md', 'Automatic Completion for 100% Discounts');
     $contains('UPGRADE-1.2.1.md', 'full_discount');
+};
+
+$tests['115 plugin enabled state is sitewide across Leconfe panel contexts'] = function () use ($contains): void {
+    $contains('index.yaml', 'sitewide: true');
+    $contains('src/ConferenceDiscountEligibilityPlugin.php', "updateSetting('enabled', true)");
+    $contains('src/ConferenceDiscountEligibilityPlugin.php', "getSetting('enabled', true)");
+    $contains('src/ConferenceDiscountEligibilityPlugin.php', 'getPluginPage');
+};
+$tests['116 generic reason choices replace organization-specific presets'] = function () use ($contains, $notContains): void {
+    foreach (['Active member', 'Institutional partner', 'Country-based waiver', 'Research support program', 'Financial hardship', 'Promotional campaign', 'Editorial decision', 'Individual approval'] as $reason) {
+        $contains('src/Support/ReasonOptions.php', $reason);
+    }
+    $notContains('src/Panel/ScheduledConference/Resources/IndividualEntitlementResource.php', 'CLAEC active member');
+};
+$tests['117 other reason requires administrator text and all reasons accept details'] = function () use ($contains): void {
+    $contains('src/Support/ReasonForm.php', "ReasonOptions::OTHER");
+    $contains('src/Support/ReasonForm.php', '->required(static fn (Get $get)');
+    $contains('src/Support/ReasonForm.php', "reason_details");
+};
+$tests['118 legacy reasons map without dropping their original text'] = function () use ($assertSame, $assert): void {
+    $parsed = ReasonOptions::parse('CLAEC active member');
+    $assertSame(ReasonOptions::ACTIVE_MEMBER, $parsed['code']);
+    $assertSame('CLAEC active member', $parsed['details']);
+    $assert(str_contains(ReasonOptions::compose($parsed['code'], $parsed['custom'], $parsed['details']), 'CLAEC active member'));
+};
+$tests['119 every shipped locale contains the new reason fields'] = function () use ($contains): void {
+    foreach (['lang/en/messages.php', 'lang/es/messages.php', 'lang/pt-BR/messages.php', 'lang/pt/messages.php', 'lang/pt_BR/messages.php'] as $path) {
+        $contains($path, "'reason_active_member'");
+        $contains($path, "'custom_reason'");
+        $contains($path, "'reason_details'");
+    }
 };
 
 $results = [];

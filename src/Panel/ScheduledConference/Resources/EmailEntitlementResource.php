@@ -12,6 +12,7 @@ use ConferenceDiscountEligibility\Services\RecalculationCoordinator;
 use ConferenceDiscountEligibility\Services\SettingsRepository;
 use ConferenceDiscountEligibility\Support\Percentage;
 use ConferenceDiscountEligibility\Support\RecalculationFeedback;
+use ConferenceDiscountEligibility\Support\ReasonForm;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -35,7 +36,7 @@ final class EmailEntitlementResource extends Resource
         return $form->schema([
             Forms\Components\TextInput::make('original_email')->label(__('ConferenceDiscountEligibility::messages.email'))->email()->required()->maxLength(255),
             Forms\Components\TextInput::make('percentage')->label(__('ConferenceDiscountEligibility::messages.percentage'))->numeric()->minValue(0.01)->maxValue(100)->step(0.01)->datalist(['40','30'])->suffix('%')->required(),
-            Forms\Components\TextInput::make('reason')->label(__('ConferenceDiscountEligibility::messages.reason'))->datalist(IndividualEntitlementResource::reasonPresets())->required()->maxLength(255),
+            ...ReasonForm::fields(),
             Forms\Components\DateTimePicker::make('valid_from')->label(__('ConferenceDiscountEligibility::messages.valid_from'))->native(false),
             Forms\Components\DateTimePicker::make('valid_until')->label(__('ConferenceDiscountEligibility::messages.valid_until'))->native(false)->afterOrEqual('valid_from'),
             Forms\Components\Toggle::make('active')->label(__('ConferenceDiscountEligibility::messages.active'))->default(true),

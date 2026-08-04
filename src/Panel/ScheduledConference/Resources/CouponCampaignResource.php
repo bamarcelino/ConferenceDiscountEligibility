@@ -12,6 +12,7 @@ use ConferenceDiscountEligibility\Services\Authorization;
 use ConferenceDiscountEligibility\Support\CouponCode;
 use ConferenceDiscountEligibility\Support\CouponPaymentTypes;
 use ConferenceDiscountEligibility\Support\Percentage;
+use ConferenceDiscountEligibility\Support\ReasonForm;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
@@ -79,10 +80,7 @@ final class CouponCampaignResource extends Resource
                 ->numeric()->minValue(0.01)->maxValue(100)->step(0.01)
                 ->datalist(['40', '30'])
                 ->suffix('%')->required(),
-            Forms\Components\TextInput::make('reason')
-                ->label(__('ConferenceDiscountEligibility::messages.reason'))
-                ->datalist(IndividualEntitlementResource::reasonPresets())
-                ->required()->maxLength(255),
+            ...ReasonForm::fields(),
             Forms\Components\CheckboxList::make('eligible_payment_types')
                 ->label(__('ConferenceDiscountEligibility::messages.coupon_eligible_payment_types'))
                 ->options([

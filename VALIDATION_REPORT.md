@@ -1,14 +1,14 @@
-# Validation Report - Conference Discount Eligibility 1.2.1
+# Validation Report - Conference Discount Eligibility 1.3.0
 
 ## Identification
 
-- Date: 2026-07-17
-- Plugin: Conference Discount Eligibility 1.2.1
+- Date: 2026-08-04
+- Plugin: Conference Discount Eligibility 1.3.0
 - Target Leconfe: 1.4.6
 - Target Leconfe tag commit: `f7e369d`
 - Target Paypal Payment plugin: 1.1.0
 - Target Paypal Payment tag commit: `6b2a0fc`
-- Validation PHP runtime: 8.4.16 CLI
+- Validation PHP runtime: 8.5.8 CLI
 - Plugin PHP constraint: `^8.1`
 - Target Laravel: 10.x
 - Target Filament: 3.3.52
@@ -17,12 +17,18 @@
 - Production database driver: not exposed by the target panel
 - Plugin schema version: 3 - unchanged from 1.2.0
 
-## Scope of version 1.2.1
+## Scope of version 1.3.0
 
-Version 1.2.1 adds safe automatic completion when a valid automatic discount or coupon reduces the complete native Payment total to exactly zero.
+Version 1.3.0 fixes plugin discovery/enablement across Leconfe panel contexts and replaces organization-specific reasons with generic, translatable controls. The previous coupon and zero-value behavior remains unchanged.
 
-The implementation:
+The 1.3.0 implementation:
 
+- follows the official Leconfe 1.4.6 discovery contract: one matching root folder with `index.yaml` and `index.php`;
+- declares `sitewide: true`, avoiding separate enabled records for administration, conference, and scheduled-conference URLs;
+- initializes a missing sitewide enabled setting during `load()`, before Leconfe's direct boot-setting check, while retaining the normal disable toggle and preserving explicit `false`;
+- registers operational resources only on the Scheduled Conference panel;
+- supplies generic reason categories, required custom text for **Other**, and optional details for every category;
+- keeps existing reason strings unchanged and maps legacy CLAEC/Research4Life text without data loss;
 - keeps positive-value Participant and Submission Payments under Paypal Payment 1.1.0;
 - calls Leconfe's native `PaymentManager::fulfillQueued()` only for zero-value Payments;
 - records `payment_method = full_discount` and `paid_at`;
@@ -39,35 +45,48 @@ No database migration is introduced.
 ```text
 php tests/run.php
 php tests/smoke-entrypoint.php
+php tests/plugin-discovery-runtime.php
 php tests/payment-manager-runtime.php
 php scripts/lint.php
 php scripts/secret-scan.php
-php scripts/validate-package.php ConferenceDiscountEligibility-1.2.1.zip
-php scripts/validate-package.php ConferenceDiscountEligibility-1.2.1.tar.gz
-unzip -t ConferenceDiscountEligibility-1.2.1.zip
-unzip -t ConferenceDiscountEligibility-1.2.1-source.zip
-tar -tzf ConferenceDiscountEligibility-1.2.1.tar.gz
-sha256sum -c ConferenceDiscountEligibility-1.2.1.sha256
+scripts/build-release.sh
+php scripts/validate-package.php artifacts/ConferenceDiscountEligibility-1.3.0.zip
+unzip -t artifacts/ConferenceDiscountEligibility-1.3.0.zip
+shasum -a 256 -c artifacts/ConferenceDiscountEligibility-1.3.0.sha256
 ```
 
 ## Executed source results
 
 | Check | Result |
 |---|---|
-| Standalone unit/source/security scenarios | 114/114 passed; 0 failed; 0 skipped |
+| Standalone unit/source/security scenarios | 119/119 passed; 0 failed; 0 skipped |
 | Entrypoint and PaymentManager signature smoke test | Passed |
+| Leconfe discovery/enablement runtime simulation | Passed; first discovery persisted true and explicit false remained false |
 | Participant/submission payment-type smoke test | Passed |
 | Runtime queue simulation | Passed for Participant and Submission Payments under 40% and 100% discounts |
 | 40% runtime result | EUR 25.00 became EUR 15.00 |
 | 100% runtime delegation result | EUR 25.00 became EUR 0.00 and was delegated to zero-value settlement |
-| PHP/Blade syntax lint | 128 files checked; 0 failures |
+| PHP/Blade syntax lint | 133 files checked; 0 failures |
 | Secret/credential pattern scan | Passed |
-| PHPUnit test methods authored | 28 methods |
+| PHPUnit test methods authored | 32 methods |
 | PHPUnit execution against full Laravel/Filament tree | NOT RUN - full application dependency tree unavailable in the isolated build container |
 | Composer audit | NOT RUN - Composer and a resolved plugin `composer.lock` were unavailable |
 | PHPStan/Psalm | NOT RUN - tools unavailable |
 
-## 100% discount scenarios covered
+## Discovery and reason scenarios covered
+
+- Leconfe 1.4.6 core source at tag 1.4.6 was inspected for extraction, manifest parsing, entrypoint loading, registration, settings cache, and panel routing;
+- release archive contains exactly one `ConferenceDiscountEligibility/` root;
+- manifest folder matches the extracted root and declares version 1.3.0 plus sitewide enablement;
+- entrypoint returns an `App\Classes\Plugin` instance and reports a clear error for source archives without the release autoloader;
+- a missing enabled setting resolves to enabled, and the standard toggle can persist a global disabled state;
+- all nine generic reasons are covered;
+- **Other** custom text and optional details composition are covered;
+- each known CLAEC/Research4Life value retains its literal original text after mapping;
+- unknown historical values remain custom reasons;
+- all five shipped locale directories contain the new strings.
+
+## Inherited 100% discount scenarios covered
 
 - 100% base fee without add-ons produces final total zero;
 - base-fee-only scope preserves a positive add-on remainder;
@@ -87,7 +106,7 @@ sha256sum -c ConferenceDiscountEligibility-1.2.1.sha256
 
 ## PayPal boundary
 
-Paypal Payment 1.1.0 reads `Payment.amount` and always attempts to create a PayPal purchase. Version 1.2.1 therefore prevents a zero-value Payment from reaching the gateway. Positive totals, including positive add-on remainders after a 100% base discount, continue to use the official PayPal flow.
+Paypal Payment 1.1.0 reads `Payment.amount` and always attempts to create a PayPal purchase. The inherited zero-value settlement prevents a zero-value Payment from reaching the gateway. Positive totals, including positive add-on remainders after a 100% base discount, continue to use the official PayPal flow.
 
 The plugin does not implement PayPal checkout, returns, cancellation, credentials, or PayPal transaction identifiers.
 
@@ -97,7 +116,9 @@ The plugin family has been installed in the real Leconfe 1.4.6 target. Automatic
 
 ## Target tests still required
 
-- upload and activation of version 1.2.1 through the Leconfe panel;
+- upload of version 1.3.0 through the Leconfe panel, confirming immediate installed/enabled display without a saved URL;
+- ordinary navigation to a Scheduled Conference, confirming the Discount Eligibility menu appears;
+- create/edit validation for generic reasons, mandatory **Other** text, optional details, and a legacy CLAEC value;
 - application of a 100% coupon to an unpaid Participant Payment;
 - application of a 100% coupon to an unpaid Submission Payment;
 - verification of `paid_at`, `payment_method = full_discount`, receipt, invoice, and consumed coupon;
@@ -116,11 +137,12 @@ PayPal Sandbox status: **PENDING EXTERNAL CREDENTIALS**.
 2. The production database engine is not exposed by the panel, so engine-specific locking behavior still needs target validation.
 3. Paypal Payment 1.1.0 does not persist a checkout-start marker before redirect. This limitation remains relevant only for positive-value payments.
 4. The native Payment Confirmed notification uses Leconfe's existing English template; plugin UI messages are translated in English, Portuguese, Brazilian Portuguese, and Spanish.
+5. Leconfe builds Filament panel routes before a Livewire upload action completes. The installed-plugins table updates immediately; newly registered navigation is expected on the next ordinary panel request/navigation, without a direct plugin URL.
 
 ## Compatibility conclusion
 
-At the inspected API boundary, version 1.2.1 remains compatible with Leconfe 1.4.6 and Paypal Payment 1.1.0. All executed standalone, signature, runtime-simulation, lint, secret-scan, and archive-structure checks passed. Final acceptance of the 100% path requires the authenticated target tests listed above.
+At the inspected API boundary, version 1.3.0 remains compatible with Leconfe 1.4.6 and Paypal Payment 1.1.0. All executed standalone, signature, runtime-simulation, lint, secret-scan, reason-compatibility, and archive-structure checks passed. Final acceptance of upload discovery and the rendered Filament form requires the authenticated target tests listed above.
 
 ## Package checksum
 
-The final archive checksums are published in `ConferenceDiscountEligibility-1.2.1.sha256`. The separately distributed validation report may include the installable ZIP checksum after archive creation; the report embedded inside the archive cannot safely contain the archive's own final hash.
+The final installable archive checksum is published in `artifacts/ConferenceDiscountEligibility-1.3.0.sha256`. The report embedded inside the archive cannot safely contain the archive's own final hash.
