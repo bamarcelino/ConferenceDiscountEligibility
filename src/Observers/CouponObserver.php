@@ -35,12 +35,12 @@ final class CouponObserver
     public function updated(ConferenceDiscountCoupon $record): void
     {
         $changes = $record->getChanges();
-        unset($changes['code_hash']);
+        unset($changes['code_hash'], $changes['code_encrypted']);
         $action = array_key_exists('active', $changes) && $record->active === false
             ? 'coupon_campaign_deactivated'
             : 'coupon_campaign_updated';
         $original = array_intersect_key($record->getOriginal(), $changes);
-        unset($original['code_hash']);
+        unset($original['code_hash'], $original['code_encrypted']);
 
         $this->auditLogger->log(
             $action,
@@ -65,7 +65,7 @@ final class CouponObserver
     private function safeValues(ConferenceDiscountCoupon $record): array
     {
         $values = $record->toArray();
-        unset($values['code_hash']);
+        unset($values['code_hash'], $values['code_encrypted']);
 
         return $values;
     }

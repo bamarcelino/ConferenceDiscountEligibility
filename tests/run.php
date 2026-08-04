@@ -327,8 +327,8 @@ $tests['56 payment creation and recalculation share the identity verifier'] = fu
     $contains('src/Services/RecalculationCoordinator.php', 'domainIdentityVerifier->evaluate');
     $contains('src/Services/EligibilityResolver.php', '...$decision->toArray()');
 };
-$tests['57 schema v3 preserves domain identity and adds coupons'] = function () use ($contains): void {
-    $contains('src/Database/SchemaDefinition.php', 'public const VERSION = 3');
+$tests['57 schema v4 preserves prior structures and adds encrypted coupon recovery'] = function () use ($contains): void {
+    $contains('src/Database/SchemaDefinition.php', 'public const VERSION = 4');
     $contains('src/Database/SchemaDefinition.php', "hasColumn('conference_discount_domains', 'identity_policy')");
     $contains('src/Database/SchemaDefinition.php', "default('verified_email_only')");
     $contains('database/migrations/2026_07_17_000001_add_domain_identity_policy_to_conference_discount_domains.php', 'identity_policy');
@@ -389,7 +389,7 @@ $tests['67 all locales describe participant and submission recalculation'] = fun
     $contains('lang/pt-BR/messages.php', 'participante e de submissão');
 };
 $tests['68 current version retains coupons on payment pages'] = function () use ($contains): void {
-    $contains('index.yaml', 'version: "1.3.0"');
+    $contains('index.yaml', 'version: "1.3.1"');
     $contains('CHANGELOG.md', 'Coupon Campaigns and Payment-Page Redemption');
     $contains('ARCHITECTURE.md', 'PaymentManager::getPaymentMethodInfolist');
 };
@@ -458,7 +458,8 @@ $tests['78 schema v3 creates coupon campaigns and reservations'] = function () u
 };
 $tests['79 plaintext coupon codes are not stored'] = function () use ($contains, $notContains): void {
     $contains('src/Models/ConferenceDiscountCoupon.php', "'code_hash'");
-    $contains('src/Observers/CouponObserver.php', "unset(\$values['code_hash'])");
+    $contains('src/Models/ConferenceDiscountCoupon.php', "'code_encrypted' => 'encrypted'");
+    $contains('src/Observers/CouponObserver.php', "unset(\$values['code_hash'], \$values['code_encrypted'])");
     $notContains('src/Models/ConferenceDiscountCoupon.php', "'plain_code'");
     $notContains('src/Database/SchemaDefinition.php', "->string('code')");
 };
@@ -522,14 +523,16 @@ $tests['91 entering a lower second coupon cannot downgrade an existing higher co
     $contains('src/Services/CouponRedemptionService.php', '$this->discounts->prepareWithCandidates');
     $contains('src/Services/PaymentDiscountService.php', 'public function prepareWithCandidates');
 };
-$tests['92 generated full coupon code is shown only once'] = function () use ($contains): void {
+$tests['92 generated full coupon code can be securely revealed again'] = function () use ($contains): void {
     $contains('src/Panel/ScheduledConference/Resources/CouponCampaignResource/Pages/CreateCouponCampaign.php', 'private string $plainCode');
-    $contains('src/Panel/ScheduledConference/Resources/CouponCampaignResource/Pages/CreateCouponCampaign.php', 'coupon_copy_now');
+    $contains('src/Panel/ScheduledConference/Resources/CouponCampaignResource/Pages/CreateCouponCampaign.php', "\$data['code_encrypted'] = \$this->plainCode");
+    $contains('src/Panel/ScheduledConference/Resources/CouponCampaignResource.php', "Action::make('reveal_code')");
+    $contains('src/Panel/ScheduledConference/Resources/CouponCampaignResource.php', "getAttribute('code_encrypted')");
     $contains('src/Panel/ScheduledConference/Resources/CouponCampaignResource.php', 'coupon_regenerate_code');
 };
 $tests['93 coupon audit excludes code hashes and plaintext'] = function () use ($contains, $notContains): void {
-    $contains('src/Observers/CouponObserver.php', "unset(\$changes['code_hash'])");
-    $contains('src/Observers/CouponObserver.php', "unset(\$values['code_hash'])");
+    $contains('src/Observers/CouponObserver.php', "unset(\$changes['code_hash'], \$changes['code_encrypted'])");
+    $contains('src/Observers/CouponObserver.php', "unset(\$values['code_hash'], \$values['code_encrypted'])");
     $notContains('src/Services/CouponRedemptionService.php', "'coupon_code'");
 };
 $tests['94 coupon redemption can be disabled per scheduled conference'] = function () use ($contains): void {
@@ -567,7 +570,7 @@ $tests['99 migration and installer require every coupon structure'] = function (
     $contains('src/Services/SchemaInstaller.php', "hasColumn('conference_discount_payment_snapshots', 'coupon_campaign_id')");
 };
 $tests['100 current plugin includes coupon campaign administration and payment-page redemption'] = function () use ($contains): void {
-    $contains('index.yaml', 'version: "1.3.0"');
+    $contains('index.yaml', 'version: "1.3.1"');
     $contains('src/ConferenceDiscountEligibilityPlugin.php', 'CouponCampaignResource::class');
     $contains('src/ConferenceDiscountEligibilityPlugin.php', "Livewire::component('conference-discount-coupon-redemption'");
     $contains('UPGRADE-1.2.1.md', '100%');
@@ -642,7 +645,7 @@ $tests['113 payment page explains that no gateway is required'] = function () us
     }
 };
 $tests['114 current version retains automatic completion for zero totals'] = function () use ($contains): void {
-    $contains('index.yaml', 'version: "1.3.0"');
+    $contains('index.yaml', 'version: "1.3.1"');
     $contains('CHANGELOG.md', 'Automatic Completion for 100% Discounts');
     $contains('UPGRADE-1.2.1.md', 'full_discount');
 };
@@ -676,6 +679,33 @@ $tests['119 every shipped locale contains the new reason fields'] = function () 
         $contains($path, "'custom_reason'");
         $contains($path, "'reason_details'");
     }
+};
+$tests['120 schema installer upgrades coupons for encrypted recovery'] = function () use ($contains): void {
+    $contains('src/Database/SchemaDefinition.php', "hasColumn('conference_discount_coupons', 'code_encrypted')");
+    $contains('src/Database/SchemaDefinition.php', "text('code_encrypted')->nullable()");
+    $contains('src/Services/SchemaInstaller.php', "hasColumn('conference_discount_coupons', 'code_encrypted')");
+    $contains('database/migrations/2026_08_04_000003_add_encrypted_coupon_code_to_conference_discount_coupons.php', 'SchemaDefinition::up');
+};
+$tests['121 legacy coupons explain why their original code cannot be recovered'] = function () use ($contains): void {
+    $contains('src/Panel/ScheduledConference/Resources/CouponCampaignResource.php', "Action::make('code_unavailable')");
+    $contains('src/Panel/ScheduledConference/Resources/CouponCampaignResource.php', 'coupon_legacy_code_help');
+};
+$tests['122 coupon reveal controls are translated in every locale'] = function () use ($contains): void {
+    foreach (['lang/en/messages.php', 'lang/es/messages.php', 'lang/pt-BR/messages.php', 'lang/pt/messages.php', 'lang/pt_BR/messages.php'] as $path) {
+        $contains($path, "'coupon_reveal_code'");
+        $contains($path, "'coupon_legacy_code_help'");
+        $contains($path, "'coupon_code_decryption_failed'");
+    }
+};
+$tests['123 reason hidden field uses methods supported by Filament 3.3.52'] = function () use ($assert, $source): void {
+    $reasonForm = $source('src/Support/ReasonForm.php');
+    $hiddenStart = strpos($reasonForm, "Forms\\Components\\Hidden::make('reason')");
+    $selectStart = strpos($reasonForm, "Forms\\Components\\Select::make('reason_code')");
+
+    $assert($hiddenStart !== false && $selectStart !== false && $selectStart > $hiddenStart);
+    $hiddenField = substr($reasonForm, $hiddenStart, $selectStart - $hiddenStart);
+    $assert(str_contains($hiddenField, '->required()'));
+    $assert(! str_contains($hiddenField, '->maxLength('), 'Filament 3.3.52 Hidden does not support maxLength().');
 };
 
 $results = [];

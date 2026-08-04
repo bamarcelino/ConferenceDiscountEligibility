@@ -24,8 +24,7 @@ final class ReasonForm
 
         return [
             Forms\Components\Hidden::make('reason')
-                ->required()
-                ->maxLength(255),
+                ->required(),
             Forms\Components\Select::make('reason_code')
                 ->label(__('ConferenceDiscountEligibility::messages.reason'))
                 ->options(ReasonOptions::labels())

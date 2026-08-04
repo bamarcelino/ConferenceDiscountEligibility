@@ -63,9 +63,13 @@ A campaign contains:
 
 Generated codes use a generic `CDE-...` prefix and cryptographic randomness. Custom codes accept 4-64 letters, numbers, hyphens, or underscores and are case-insensitive.
 
-The full code appears only in the persistent success notification after creation or regeneration. Copy it then. The database stores a keyed hash and a masked hint, not the full code.
+The full code appears in the persistent success notification after creation or regeneration. Copy it then, or use **Reveal code** later. The database stores a keyed hash, a masked hint, and an authenticated-encrypted recovery value—not plaintext.
 
-Do not rotate the Laravel `APP_KEY` without replacing active coupon campaigns, because the keyed hashes depend on that key.
+From version 1.3.1 onward, the normalized full code is also stored using Laravel's authenticated encryption. An authorized administrator can use **Reveal code** from the Coupon Campaigns table whenever the code needs to be redistributed. Redemption continues to use only the keyed hash.
+
+Campaigns created before 1.3.1 have no recoverable encrypted value because earlier versions never stored it. Their existing codes remain valid. If the campaign has no uses, choose **Regenerate code** once to replace it and enable future reveal.
+
+Do not rotate the Laravel `APP_KEY` without replacing active coupon campaigns, because both keyed hashes and encrypted recovery depend on that key.
 
 ### Payment-page redemption
 

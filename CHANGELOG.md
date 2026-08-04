@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.3.1 - 2026-08-04 - Secure Coupon Code Reveal
+
+- Added a **Reveal code** action to Coupon Campaigns for authorized administrators.
+- Preserved keyed HMAC hashes for coupon lookup and added a separate Laravel authenticated-encrypted value for administrative recovery.
+- Stored generated, manually entered, and regenerated codes through the encrypted Eloquent cast.
+- Added schema version 4 and an idempotent nullable `code_encrypted` column.
+- Kept legacy campaign hashes, hints, redemptions, and usability unchanged; older full codes cannot be reconstructed and require one regeneration to enable reveal.
+- Excluded encrypted payloads from model serialization and audit old/new values.
+- Added decryption-failure handling and English, Brazilian Portuguese, Portuguese, and Spanish interface messages.
+- Fixed HTTP 500 responses on all create/edit discount and coupon forms by removing an unsupported `maxLength()` call from Filament 3.3.52's hidden reason field.
+
 ## 1.3.0 - 2026-08-04 - Reliable Discovery and Generic Reasons
 
 - Marked the plugin manifest as sitewide so Leconfe 1.4.6 uses one enablement record across administration, conference, and scheduled-conference contexts.

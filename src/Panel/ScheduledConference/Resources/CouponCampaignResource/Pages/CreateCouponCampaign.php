@@ -26,6 +26,7 @@ final class CreateCouponCampaign extends CreateRecord
         $data['scheduled_conference_id'] = app()->getCurrentScheduledConference()->getKey();
         $data['code_hash'] = CouponCode::hash($this->plainCode);
         $data['code_hint'] = CouponCode::hint($this->plainCode);
+        $data['code_encrypted'] = $this->plainCode;
 
         return $data;
     }
@@ -36,7 +37,7 @@ final class CreateCouponCampaign extends CreateRecord
             ->success()
             ->persistent()
             ->title(__('ConferenceDiscountEligibility::messages.coupon_code_generated'))
-            ->body(__('ConferenceDiscountEligibility::messages.coupon_copy_now', ['code' => $this->plainCode]))
+            ->body(__('ConferenceDiscountEligibility::messages.coupon_code_reveal_value', ['code' => $this->plainCode]))
             ->send();
     }
 }
