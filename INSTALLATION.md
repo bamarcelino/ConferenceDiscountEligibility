@@ -2,10 +2,10 @@
 
 ## Compatibility
 
-- Leconfe 1.4.6
+- Leconfe 1.4.6 or 1.5.0
 - Paypal Payment 1.1.0
 - PHP compatible with the target Leconfe installation
-- Laravel, Filament, and Livewire versions bundled by Leconfe 1.4.6
+- Laravel, Filament, and Livewire versions bundled by either supported Leconfe release
 - PHP extensions required by Leconfe, plus JSON and mbstring
 
 ## Upgrade from 1.1.0 or earlier
@@ -13,12 +13,12 @@
 1. Back up the Leconfe database and plugin directory.
 2. Confirm no PayPal checkout is open for a payment that may be changed.
 3. Open **Plugin Management** and disable Conference Discount Eligibility temporarily.
-4. Upload `ConferenceDiscountEligibility-1.3.2.zip` over the existing plugin.
-5. Confirm that the installed-plugins table immediately shows version 1.3.2 as enabled.
+4. Upload `ConferenceDiscountEligibility-1.4.0.zip` over the existing plugin.
+5. Confirm that the installed-plugins table immediately shows version 1.4.0 as enabled.
 6. Navigate normally to a Scheduled Conference panel; no saved/direct plugin URL is required.
 7. Open **Discount Eligibility - Settings** and review **Allow coupon entry on payment pages**.
 
-If Plugin Management still displays an earlier version after upload, reload the page and clear the application/PHP opcode cache or restart the PHP service according to the hosting environment. Test the corrected form only after version 1.3.2 is shown.
+If Plugin Management still displays an earlier version after upload, reload the page and clear the application/PHP opcode cache or restart the PHP service according to the hosting environment. Test the plugin only after version 1.4.0 is shown.
 
 The enabled plugin runs its idempotent schema installer. Schema version 4 adds a nullable encrypted-code column to coupon campaigns. Existing campaigns, hashes, hints, redemptions, and payment snapshots are preserved.
 
@@ -27,7 +27,7 @@ The enabled plugin runs its idempotent schema installer. Schema version 4 adds a
 1. Back up the database.
 2. Keep Paypal Payment 1.1.0 installed and configured.
 3. Open **Plugin Management - Upload Plugin**.
-4. Upload `ConferenceDiscountEligibility-1.3.2.zip`.
+4. Upload `ConferenceDiscountEligibility-1.4.0.zip`.
 5. Confirm that it appears immediately as enabled in the installed-plugins table.
 6. Open a Scheduled Conference normally and select **Discount Eligibility - Settings** from its navigation.
 7. Keep **Base fee only** initially.
@@ -38,7 +38,7 @@ The enabled plugin runs its idempotent schema installer. Schema version 4 adds a
 
 ## ZIP MIME issue in Chrome
 
-Leconfe 1.4.6's browser-side upload field accepts the exact MIME `application/zip`. Some Windows/Chrome combinations label valid ZIP files differently. If the panel reports **File of invalid type**, use the previously supplied Chrome ZIP MIME helper or apply the documented Leconfe upload MIME patch. This does not alter the plugin archive.
+Leconfe's browser-side upload field accepts the exact MIME `application/zip`. Some Windows/Chrome combinations label valid ZIP files differently. If the panel reports **File of invalid type**, use the previously supplied Chrome ZIP MIME helper or apply the documented Leconfe upload MIME patch. This does not alter the plugin archive.
 
 ## Package structure
 
@@ -58,7 +58,7 @@ ConferenceDiscountEligibility/
   documentation files
 ```
 
-Do not upload the `.tar.gz`; Leconfe 1.4.6's official upload mechanism accepts ZIP only.
+Do not upload a `.tar.gz`; Leconfe's official upload mechanism accepts ZIP only.
 
 ## Post-installation checks
 

@@ -46,5 +46,5 @@ namespace {
         exit(1);
     }
 
-    echo "Leconfe 1.4.6 discovery enablement simulation passed.\n";
+    echo "Leconfe 1.4.6/1.5.0 discovery enablement simulation passed.\n";
 }

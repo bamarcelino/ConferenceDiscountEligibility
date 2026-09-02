@@ -22,7 +22,7 @@ if ($code !== 0) {
     exit(1);
 }
 $root = $temp . '/ConferenceDiscountEligibility';
-$required = ['index.php','index.yaml','composer.json','vendor/autoload.php','src/ConferenceDiscountEligibilityPlugin.php','src/Support/ReasonForm.php','database/migrations/2026_08_04_000003_add_encrypted_coupon_code_to_conference_discount_coupons.php','RESEARCH.md','ARCHITECTURE.md','SECURITY.md','UPGRADE-1.3.2.md','sample-discount-import.csv'];
+$required = ['index.php','index.yaml','composer.json','vendor/autoload.php','src/ConferenceDiscountEligibilityPlugin.php','src/Support/ReasonForm.php','database/migrations/2026_08_04_000003_add_encrypted_coupon_code_to_conference_discount_coupons.php','RESEARCH.md','ARCHITECTURE.md','SECURITY.md','UPGRADE-1.4.0.md','sample-discount-import.csv'];
 $errors = [];
 $entries = array_values(array_diff(scandir($temp) ?: [], ['.','..']));
 if ($entries !== ['ConferenceDiscountEligibility']) {
@@ -34,11 +34,11 @@ foreach ($required as $file) {
 if (is_dir($root . '/ConferenceDiscountEligibility')) {
     $errors[] = 'Duplicate nested root folder detected.';
 }
-if (! str_contains((string) file_get_contents($root . '/index.yaml'), 'version: "1.3.2"')) {
-    $errors[] = 'Manifest version is not 1.3.2.';
+if (! str_contains((string) file_get_contents($root . '/index.yaml'), 'version: "1.4.0"')) {
+    $errors[] = 'Manifest version is not 1.4.0.';
 }
 if (! str_contains((string) file_get_contents($root . '/index.yaml'), 'sitewide: true')) {
-    $errors[] = 'Manifest must use sitewide discovery and enablement on Leconfe 1.4.6.';
+    $errors[] = 'Manifest must use sitewide discovery and enablement on supported Leconfe releases.';
 }
 if ($errors !== []) {
     fwrite(STDERR, implode("\n", $errors) . "\n");

@@ -1,4 +1,4 @@
-# ARCHITECTURE - Conference Discount Eligibility 1.3.2
+# ARCHITECTURE - Conference Discount Eligibility 1.4.0
 
 ## Architectural goals
 
@@ -63,7 +63,7 @@ Livewire Coupon form ---> CouponRedemptionService
 
 `PaymentManager::get()` resolves from the Laravel container. During plugin boot, the plugin binds the core manager to `DiscountAwarePaymentManager`, preserves the target `queue()` signature, calculates automatic eligibility, and delegates payment creation to `parent::queue()`.
 
-Both native Leconfe 1.4.6 types are supported:
+Both native Leconfe 1.4.6/1.5.0 types are supported:
 
 - `TYPE_PARTICIPANT_FEE`;
 - `TYPE_SUBMISSION_FEE`.
@@ -74,7 +74,7 @@ The plugin does not override `fulfillQueued()`. Positive-value payments remain s
 
 ### Payment-detail infolist hook
 
-Leconfe 1.4.6 calls `PaymentManager::get()->getPaymentMethodInfolist()` in the right-hand Payment Detail column. The plugin registers two sections through the official `PaymentManager::getPaymentMethodInfolist` hook:
+Leconfe 1.4.6 and 1.5.0 call `PaymentManager::get()->getPaymentMethodInfolist()` in the right-hand Payment Detail column. The plugin registers two sections through the official `PaymentManager::getPaymentMethodInfolist` hook:
 
 - read-only discount snapshot details;
 - a `ViewEntry` hosting the nested Livewire coupon component.
@@ -260,7 +260,9 @@ Disabling the plugin leaves schema and data intact. A production downgrade shoul
 
 ## Plugin discovery and reason compatibility
 
-Leconfe 1.4.6 discovers a plugin only when the extracted root folder contains both `index.yaml` and `index.php`. Its enabled setting is normally scoped to the current panel context, and `PluginManager::initialize()` checks that setting directly with a `false` default before booting. Version 1.3.0 declares `sitewide: true` and initializes a missing sitewide `enabled` setting during `load()`, before the manager performs that boot decision. Upload/enable state is therefore shared across every panel context and the plugin boots in the same discovery cycle. An explicitly stored `false` value is never overwritten. `onPanel()` still registers resources only for `scheduledConference`.
+Leconfe 1.4.6 and 1.5.0 discover a plugin only when the extracted root folder contains both `index.yaml` and `index.php`. The enabled setting is normally scoped to the current panel context, and `PluginManager::initialize()` checks that setting directly with a `false` default before booting. Version 1.3.0 declares `sitewide: true` and initializes a missing sitewide `enabled` setting during `load()`, before the manager performs that boot decision. Upload/enable state is therefore shared across every panel context and the plugin boots in the same discovery cycle. An explicitly stored `false` value is never overwritten. `onPanel()` still registers resources only for `scheduledConference`.
+
+Leconfe 1.5.0 changed `ParticipantPayment` and `SubmissionPayment` notifications from a public participant/submission model to a public integer `paymentId`. The notification-suppression listener resolves the Payment by ID on 1.5.0 and retains the legacy relation path on 1.4.6. The normal pending notification path and unrelated notifications remain untouched.
 
 Reasons continue to use the existing 255-character `reason` column, so no migration or snapshot rewrite is necessary. All create/edit screens use one required native Filament text field bound directly to `reason`. Existing values are displayed and saved unchanged, with no preset mapping, hidden state, or reactive composition.
 
@@ -268,9 +270,10 @@ Reasons continue to use the existing 255-character `reason` column, so no migrat
 
 Confirmed design target:
 
-- Leconfe 1.4.6 (`f7e369d`);
+- Leconfe 1.5.0 (`bdf41d7d8ac58d12c5169c2efadb0dd9a5ad2ae3`) as the primary target;
+- Leconfe 1.4.6 (`f7e369d`) as the preserved compatibility target;
 - PaypalPayment 1.1.0 (`6b2a0fc`);
-- Laravel/Filament/Livewire versions bundled by that Leconfe release;
+- Laravel/Filament/Livewire versions bundled by those Leconfe releases;
 - PHP application constraint `^8.1`.
 
-Local validation was executed on PHP 8.4.16. Full target-panel and PayPal Sandbox validation are recorded separately in `VALIDATION_REPORT.md`.
+Local validation was executed on PHP 8.5.8. Full target-panel and PayPal Sandbox validation are recorded separately in `VALIDATION_REPORT.md`.

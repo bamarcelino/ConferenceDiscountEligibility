@@ -2,5 +2,5 @@ name: "Conference Discount Eligibility"
 folder: ConferenceDiscountEligibility
 author: "Bruno Cesar Alves Marcelino"
 description: "Applies scheduled-conference eligibility discounts and payment-page coupons to eligible users while preserving Leconfe's official PayPal payment flow."
-version: "1.3.2"
+version: "1.4.0"
 sitewide: true

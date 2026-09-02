@@ -11,7 +11,8 @@ use RuntimeException;
 
 final class CompatibilityGuard
 {
-    public const TARGET_LECONFE_VERSION = '1.4.6';
+    public const TARGET_LECONFE_VERSION = '1.5.0';
+    public const SUPPORTED_LECONFE_VERSIONS = ['1.4.6', '1.5.0'];
     public const TARGET_PAYPAL_VERSION = '1.1.0';
 
     public function assertCompatible(): void
@@ -31,12 +32,23 @@ final class CompatibilityGuard
         $expected = ['model','paymentFee','user','type','title','requestUrl','description','amount','currency','expiredAt','additionalItems','baseAmount'];
         $actual = array_map(static fn (\ReflectionParameter $parameter): string => $parameter->getName(), $method->getParameters());
         if ($actual !== $expected) {
-            throw new RuntimeException('Unsupported PaymentManager::queue() signature; this package targets Leconfe 1.4.6.');
+            throw new RuntimeException('Unsupported PaymentManager::queue() signature; this package supports Leconfe 1.4.6 and 1.5.0.');
+        }
+
+        $fulfillMethod = new ReflectionMethod(PaymentManager::class, 'fulfillQueued');
+        $expectedFulfill = ['payment', 'paymentMethod', 'userId'];
+        $actualFulfill = array_map(static fn (\ReflectionParameter $parameter): string => $parameter->getName(), $fulfillMethod->getParameters());
+        if ($fulfillMethod->isFinal() || $actualFulfill !== $expectedFulfill) {
+            throw new RuntimeException('Unsupported PaymentManager::fulfillQueued() signature; this package supports Leconfe 1.4.6 and 1.5.0.');
         }
 
         $version = $this->detectLeconfeVersion();
-        if ($version !== null && $version !== self::TARGET_LECONFE_VERSION) {
-            throw new RuntimeException(sprintf('Plugin 1.0.3 supports Leconfe %s; detected %s.', self::TARGET_LECONFE_VERSION, $version));
+        if ($version !== null && ! in_array($version, self::SUPPORTED_LECONFE_VERSIONS, true)) {
+            throw new RuntimeException(sprintf(
+                'Conference Discount Eligibility supports Leconfe %s; detected %s.',
+                implode(' and ', self::SUPPORTED_LECONFE_VERSIONS),
+                $version,
+            ));
         }
         if ($version === null) {
             Log::warning('Conference Discount Eligibility could not read the Leconfe version file; the PaymentManager signature guard passed.');

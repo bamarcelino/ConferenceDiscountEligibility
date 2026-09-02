@@ -2,18 +2,19 @@
 
 ## Status and scope
 
-Research freeze date: **2026-07-16**  
-Target installation confirmed by the owner: **Leconfe 1.4.6** (installed 2026-07-15).  
-Official source tag analysed: `leconfe/leconfe:1.4.6`, commit `f7e369d`.  
-Official payment plugin confirmed by the owner: **Paypal Payment 1.1.0**.  
+Initial research date: **2026-07-16**; Leconfe 1.5 compatibility review: **2026-09-02**.
+Supported Leconfe releases: **1.4.6 and 1.5.0**.
+Official source tags analysed: `leconfe/leconfe:1.4.6` (`f7e369d`) and `leconfe/leconfe:1.5.0` (`bdf41d7d8ac58d12c5169c2efadb0dd9a5ad2ae3`).
+Official payment plugin confirmed by the owner: **Paypal Payment 1.1.0**.
 Official source tag analysed: `leconfe/PaypalPayment:1.1.0`, commit `6b2a0fc`.
 
 This document records source-level findings before implementation. It intentionally distinguishes verified facts from constraints that could not be validated without the production source tree, runtime output, database credentials, or an authenticated panel session.
 
 ## Official sources reviewed
 
-- Leconfe repository and release tag: <https://github.com/leconfe/leconfe/tree/1.4.6>
-- Leconfe releases: <https://github.com/leconfe/leconfe/releases/tag/1.4.6>
+- Leconfe 1.5.0 source tag: <https://github.com/leconfe/leconfe/tree/1.5.0>
+- Leconfe 1.5.0 release: <https://github.com/leconfe/leconfe/releases/tag/1.5.0>
+- Leconfe 1.4.6 source tag: <https://github.com/leconfe/leconfe/tree/1.4.6>
 - Leconfe documentation: <https://leconfe.com/docs/>
 - Scheduled Conference: <https://leconfe.com/docs/scheduled-conference/>
 - Payment settings: <https://leconfe.com/docs/configuring-payment-settings-in-leconfe-v-1-3-0/>
@@ -51,6 +52,8 @@ The release `composer.json` targets PHP `^8.1`, Laravel `^10.0`, Filament `^3.1`
 | `omnipay/paypal` | `3.0.2` in PaypalPayment lock |
 | PaypalPayment requirement | `omnipay/paypal:^3.0` |
 | Database | Production driver not exposed by the version panel; plugin schema uses Laravel-portable types and is tested structurally against SQLite-compatible SQL abstractions |
+
+The inspected 1.4.6 and 1.5.0 dependency locks both use Laravel 10, Filament 3.3.52, and Livewire 3.8.1. The relevant plugin, Hook, PaymentManager, Payment interface, Meta, role, and payment-confirmation APIs are unchanged. The relevant 1.5.0 breaking change is the Participant/Submission payment notification constructor: it now stores `paymentId` instead of the related model. Version 1.4.0 handles both shapes. Leconfe 1.5.0 also discovers plugin tests through the Composer `test` script, which this package now provides.
 
 ## Plugin lifecycle and installer
 
