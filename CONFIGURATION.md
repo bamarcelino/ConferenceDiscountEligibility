@@ -6,21 +6,9 @@ Select an existing user and configure percentage, reason, validity, status, note
 
 ## Reasons
 
-The same organization-neutral choices are available for individual users, email lists, institutional domains, and coupon campaigns:
+The administrator writes the reason directly in one required free-text field. There are no predefined choices and no organization-specific values. The same field is used for individual users, email lists, institutional domains, and coupon campaigns.
 
-- Active member
-- Institutional partner
-- Country-based waiver
-- Research support program
-- Financial hardship
-- Promotional campaign
-- Editorial decision
-- Individual approval
-- Other
-
-Selecting **Other** makes **Custom reason** mandatory. **Additional reason details** is optional for every choice. Stored reason text remains suitable for snapshots, invoices, reports, CSV exports, and audit history.
-
-Existing values are not rewritten during upgrade. When an old CLAEC/Research4Life preset is edited, it is mapped to the closest generic category and its exact original text is retained in the details field. Any unrecognized historical value is treated as a custom **Other** reason.
+The value is stored directly in the existing `reason` column and remains available to snapshots, invoices, reports, CSV exports, and audit history. Existing values are not rewritten or mapped during upgrade: when an older record is edited, its original reason appears exactly as stored.
 
 ## Email Lists
 

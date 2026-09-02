@@ -93,17 +93,18 @@ final class SourceContractTest extends TestCase
         self::assertStringContainsString("hash_hmac('sha256'", $support);
     }
 
-    public function testReasonHiddenFieldUsesOnlyFilamentHiddenCompatibleMethods(): void
+    public function testReasonUsesOneNativeTextFieldWithoutReactiveState(): void
     {
         $root = dirname(__DIR__, 2);
         $source = (string) file_get_contents($root . '/src/Support/ReasonForm.php');
-        $hiddenField = strstr($source, "Forms\\Components\\Hidden::make('reason')");
 
-        self::assertIsString($hiddenField);
-        $hiddenField = strstr($hiddenField, "Forms\\Components\\Select::make('reason_code')", true);
-        self::assertIsString($hiddenField);
-        self::assertStringContainsString('->required()', $hiddenField);
-        self::assertStringNotContainsString('->maxLength(', $hiddenField);
+        self::assertStringContainsString("Forms\\Components\\TextInput::make('reason')", $source);
+        self::assertStringContainsString('->required()', $source);
+        self::assertStringContainsString('->maxLength(255)', $source);
+        self::assertStringNotContainsString('Hidden::make', $source);
+        self::assertStringNotContainsString('Select::make', $source);
+        self::assertStringNotContainsString('afterStateHydrated', $source);
+        self::assertStringNotContainsString('afterStateUpdated', $source);
     }
 
     public function testCouponCompletionObservesNativePaidStateWithoutReplacingPaypal(): void

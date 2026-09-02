@@ -12,7 +12,7 @@
 - Coupon Campaigns with automatically generated or administrator-defined codes.
 - Authorized administrators can reveal securely encrypted coupon codes again from the campaign list.
 - Coupon percentage, reason, validity, global-use limit, per-user limit, native payment-type scope, and optional payment-fee restrictions.
-- Organization-neutral reason choices, required administrator-defined text for **Other**, and optional details for every choice.
+- A required free-text reason written directly by the administrator, without predefined organization-specific choices.
 - Coupon entry directly on unpaid Participant Payment and Submission Payment pages before the payment gateway is opened.
 - Automatic zero-value completion for 100% discounts, with no PayPal checkout and with invoice, receipt, confirmation, snapshot, and audit preservation.
 - Server-side coupon validation, attempt throttling, transactional reservation, release, replacement, and consumption.
@@ -42,17 +42,17 @@ Rotating the Laravel `APP_KEY` invalidates existing coupon hashes. Export or rep
 
 ## Package choice
 
-Use `ConferenceDiscountEligibility-1.3.1.zip` in Leconfe's **Upload Plugin** action. Leconfe 1.4.6 accepts ZIP packages only.
+Use `ConferenceDiscountEligibility-1.3.2.zip` in Leconfe's **Upload Plugin** action. Leconfe 1.4.6 accepts ZIP packages only.
 
 ## Upgrade behavior
 
-Version 1.3.1 adds schema version 4 with a nullable authenticated-encrypted coupon-code column. Existing campaigns and redemptions are preserved. Older campaign codes remain valid but cannot be recovered retrospectively; regenerate an unused legacy campaign once to enable future reveal. See `UPGRADE-1.3.1.md`.
+Version 1.3.2 replaces the Reason selector with one required free-text field and does not change the schema. Existing reasons remain unchanged and appear directly in the field when a record is edited. The schema version 4 encrypted coupon-code recovery introduced in 1.3.1 remains included. See `UPGRADE-1.3.2.md`.
 
 ## Validation status
 
-The automatic discount path has already been exercised successfully in the real target installation, including participant and submission amounts, Payment Detail, Audit Log, and invoice output. Version 1.3.1 has been subjected to the isolated tests, source-contract checks, Leconfe 1.4.6 discovery review, entrypoint/runtime simulations, syntax lint, secret scan, and archive extraction checks recorded in `VALIDATION_REPORT.md`.
+The automatic discount path has already been exercised successfully in the real target installation, including participant and submission amounts, Payment Detail, Audit Log, and invoice output. Version 1.3.2 has been subjected to the isolated tests, source-contract checks, Leconfe 1.4.6 discovery review, entrypoint/runtime simulations, syntax lint, secret scan, and archive extraction checks recorded in `VALIDATION_REPORT.md`.
 
-The new upload/discovery behavior and reason UI still require end-to-end validation in the authenticated target panel. PayPal Sandbox remains **PENDING EXTERNAL CREDENTIALS**.
+The corrected free-text Reason form still requires end-to-end validation in the authenticated target panel. PayPal Sandbox remains **PENDING EXTERNAL CREDENTIALS**.
 
 ## Documentation
 
@@ -61,7 +61,7 @@ The new upload/discovery behavior and reason UI still require end-to-end validat
 - `INSTALLATION.md`
 - `CONFIGURATION.md`
 - `SECURITY.md`
-- `UPGRADE-1.3.1.md`
+- `UPGRADE-1.3.2.md`
 - `VALIDATION_REPORT.md`
 - `CHANGELOG.md`
 

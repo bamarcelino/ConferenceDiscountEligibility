@@ -1,9 +1,9 @@
-# Validation Report - Conference Discount Eligibility 1.3.1
+# Validation Report - Conference Discount Eligibility 1.3.2
 
 ## Identification
 
 - Date: 2026-08-04
-- Plugin: Conference Discount Eligibility 1.3.1
+- Plugin: Conference Discount Eligibility 1.3.2
 - Target Leconfe: 1.4.6
 - Target Leconfe tag commit: `f7e369d`
 - Target Paypal Payment plugin: 1.1.0
@@ -17,18 +17,19 @@
 - Production database driver: not exposed by the target panel
 - Plugin schema version: 4
 
-## Scope of version 1.3.1
+## Scope of version 1.3.2
 
-Version 1.3.1 adds authorized repeat viewing of coupon codes through authenticated encryption. The 1.3.0 discovery and generic-reason behavior, coupon redemption, and zero-value completion remain unchanged.
+Version 1.3.2 replaces the reactive Reason selector introduced in 1.3.0 with one native free-text field. Coupon-code recovery from 1.3.1, discovery behavior, coupon redemption, and zero-value completion remain unchanged.
 
-The 1.3.1 implementation:
+The 1.3.2 implementation:
 
 - follows the official Leconfe 1.4.6 discovery contract: one matching root folder with `index.yaml` and `index.php`;
 - declares `sitewide: true`, avoiding separate enabled records for administration, conference, and scheduled-conference URLs;
 - initializes a missing sitewide enabled setting during `load()`, before Leconfe's direct boot-setting check, while retaining the normal disable toggle and preserving explicit `false`;
 - registers operational resources only on the Scheduled Conference panel;
-- supplies generic reason categories, required custom text for **Other**, and optional details for every category;
-- uses only methods supported by Filament 3.3.52 when building the hidden composed-reason field, preventing the create/edit HTTP 500 introduced in 1.3.0;
+- supplies one required administrator-defined free-text Reason field with no predefined values;
+- binds the native Filament `TextInput` directly to the existing `reason` attribute, without hidden state, hydration callbacks, update callbacks, or reactive dependencies;
+- preserves all historical reason strings exactly as stored and requires no reason migration;
 - keeps existing reason strings unchanged and maps legacy CLAEC/Research4Life text without data loss;
 - retains keyed hashes as the only coupon-redemption lookup and adds a separate encrypted recovery value;
 - stores generated, manually entered, and regenerated codes through Laravel's authenticated encrypted cast;
@@ -56,9 +57,9 @@ php tests/payment-manager-runtime.php
 php scripts/lint.php
 php scripts/secret-scan.php
 scripts/build-release.sh
-php scripts/validate-package.php artifacts/ConferenceDiscountEligibility-1.3.1.zip
-unzip -t artifacts/ConferenceDiscountEligibility-1.3.1.zip
-shasum -a 256 -c artifacts/ConferenceDiscountEligibility-1.3.1.sha256
+php scripts/validate-package.php artifacts/ConferenceDiscountEligibility-1.3.2.zip
+unzip -t artifacts/ConferenceDiscountEligibility-1.3.2.zip
+shasum -a 256 -c artifacts/ConferenceDiscountEligibility-1.3.2.sha256
 ```
 
 ## Executed source results
@@ -72,9 +73,9 @@ shasum -a 256 -c artifacts/ConferenceDiscountEligibility-1.3.1.sha256
 | Runtime queue simulation | Passed for Participant and Submission Payments under 40% and 100% discounts |
 | 40% runtime result | EUR 25.00 became EUR 15.00 |
 | 100% runtime delegation result | EUR 25.00 became EUR 0.00 and was delegated to zero-value settlement |
-| PHP/Blade syntax lint | 134 files checked; 0 failures |
+| PHP/Blade syntax lint | 132 files checked; 0 failures |
 | Secret/credential pattern scan | Passed |
-| PHPUnit test methods authored | 33 methods |
+| PHPUnit test methods authored | 29 methods |
 | PHPUnit execution against full Laravel/Filament tree | NOT RUN - full application dependency tree unavailable in the isolated build container |
 | Composer audit | NOT RUN - Composer and a resolved plugin `composer.lock` were unavailable |
 | PHPStan/Psalm | NOT RUN - tools unavailable |
@@ -83,15 +84,13 @@ shasum -a 256 -c artifacts/ConferenceDiscountEligibility-1.3.1.sha256
 
 - Leconfe 1.4.6 core source at tag 1.4.6 was inspected for extraction, manifest parsing, entrypoint loading, registration, settings cache, and panel routing;
 - release archive contains exactly one `ConferenceDiscountEligibility/` root;
-- manifest folder matches the extracted root and declares version 1.3.1 plus sitewide enablement;
+- manifest folder matches the extracted root and declares version 1.3.2 plus sitewide enablement;
 - entrypoint returns an `App\Classes\Plugin` instance and reports a clear error for source archives without the release autoloader;
 - a missing enabled setting resolves to enabled, and the standard toggle can persist a global disabled state;
-- all nine generic reasons are covered;
-- **Other** custom text and optional details composition are covered;
-- each known CLAEC/Research4Life value retains its literal original text after mapping;
-- unknown historical values remain custom reasons;
-- all five shipped locale directories contain the new strings.
-- the shared Reason form no longer calls `maxLength()` on Filament's `Hidden` component, and a regression contract prevents that incompatible call from returning;
+- one native required 255-character `TextInput` is bound directly to `reason`;
+- the shared form contains no predefined Select, Hidden field, reactive state, hydration callback, update callback, or non-dehydrated state;
+- existing CLAEC/Research4Life, generic, and arbitrary historical values remain unchanged because no mapping is performed;
+- all five shipped locale directories contain the free-text help message and no longer ship the removed preset labels;
 - schema upgrade adds nullable encrypted recovery without changing existing hashes or redemptions;
 - new and regenerated codes populate hash, hint, and encrypted value;
 - reveal action decrypts only on administrator request and handles decryption failure;
@@ -128,11 +127,11 @@ The plugin family has been installed in the real Leconfe 1.4.6 target. Automatic
 
 ## Target tests still required
 
-- upload of version 1.3.1 through the Leconfe panel, confirming schema version 4 and immediate installed/enabled display;
+- upload of version 1.3.2 through the Leconfe panel, confirming schema version 4 and immediate installed/enabled display;
 - creation and repeat reveal of generated and manually entered codes;
 - legacy campaign behavior before and after regeneration;
 - ordinary navigation to a Scheduled Conference, confirming the Discount Eligibility menu appears;
-- create/edit validation for generic reasons, mandatory **Other** text, optional details, and a legacy CLAEC value;
+- create/edit validation of the required free-text Reason field for individual, email, institutional-domain, and coupon records, including an existing legacy value;
 - application of a 100% coupon to an unpaid Participant Payment;
 - application of a 100% coupon to an unpaid Submission Payment;
 - verification of `paid_at`, `payment_method = full_discount`, receipt, invoice, and consumed coupon;
@@ -155,8 +154,8 @@ PayPal Sandbox status: **PENDING EXTERNAL CREDENTIALS**.
 
 ## Compatibility conclusion
 
-At the inspected API boundary, version 1.3.1 remains compatible with Leconfe 1.4.6 and Paypal Payment 1.1.0. All executed standalone, signature, runtime-simulation, lint, secret-scan, reason-compatibility, coupon-recovery source contracts, and archive-structure checks passed. Final acceptance of encrypted persistence and the rendered Filament action requires the authenticated target tests listed above.
+At the inspected API boundary, version 1.3.2 remains compatible with Leconfe 1.4.6 and Paypal Payment 1.1.0. All executed standalone, signature, runtime-simulation, lint, secret-scan, free-text-reason, coupon-recovery source contracts, and archive-structure checks passed. Final acceptance of encrypted persistence and the rendered Filament form/action requires the authenticated target tests listed above.
 
 ## Package checksum
 
-The final installable archive checksum is published in `artifacts/ConferenceDiscountEligibility-1.3.1.sha256`. The report embedded inside the archive cannot safely contain the archive's own final hash.
+The final installable archive checksum is published in `artifacts/ConferenceDiscountEligibility-1.3.2.sha256`. The report embedded inside the archive cannot safely contain the archive's own final hash.
