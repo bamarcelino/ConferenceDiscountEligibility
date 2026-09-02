@@ -388,7 +388,7 @@ $tests['67 all locales describe participant and submission recalculation'] = fun
     $contains('lang/pt-BR/messages.php', 'participante e de submissão');
 };
 $tests['68 current version retains coupons on payment pages'] = function () use ($contains): void {
-    $contains('index.yaml', 'version: "1.3.2"');
+    $contains('index.yaml', 'version: "1.4.0"');
     $contains('CHANGELOG.md', 'Coupon Campaigns and Payment-Page Redemption');
     $contains('ARCHITECTURE.md', 'PaymentManager::getPaymentMethodInfolist');
 };
@@ -569,7 +569,7 @@ $tests['99 migration and installer require every coupon structure'] = function (
     $contains('src/Services/SchemaInstaller.php', "hasColumn('conference_discount_payment_snapshots', 'coupon_campaign_id')");
 };
 $tests['100 current plugin includes coupon campaign administration and payment-page redemption'] = function () use ($contains): void {
-    $contains('index.yaml', 'version: "1.3.2"');
+    $contains('index.yaml', 'version: "1.4.0"');
     $contains('src/ConferenceDiscountEligibilityPlugin.php', 'CouponCampaignResource::class');
     $contains('src/ConferenceDiscountEligibilityPlugin.php', "Livewire::component('conference-discount-coupon-redemption'");
     $contains('UPGRADE-1.2.1.md', '100%');
@@ -644,7 +644,7 @@ $tests['113 payment page explains that no gateway is required'] = function () us
     }
 };
 $tests['114 current version retains automatic completion for zero totals'] = function () use ($contains): void {
-    $contains('index.yaml', 'version: "1.3.2"');
+    $contains('index.yaml', 'version: "1.4.0"');
     $contains('CHANGELOG.md', 'Automatic Completion for 100% Discounts');
     $contains('UPGRADE-1.2.1.md', 'full_discount');
 };
@@ -703,6 +703,27 @@ $tests['123 reason text field uses only methods supported by Filament 3.3.52'] =
     $assert(str_contains($reasonForm, '->maxLength(255)'));
     $assert(! str_contains($reasonForm, 'Hidden::make'));
     $assert(! str_contains($reasonForm, 'Select::make'));
+};
+
+$tests['124 Leconfe compatibility guard targets 1.5 and preserves 1.4.6 support'] = function () use ($contains): void {
+    $contains('src/Services/CompatibilityGuard.php', "TARGET_LECONFE_VERSION = '1.5.0'");
+    $contains('src/Services/CompatibilityGuard.php', "SUPPORTED_LECONFE_VERSIONS = ['1.4.6', '1.5.0']");
+    $contains('src/Services/CompatibilityGuard.php', "new ReflectionMethod(PaymentManager::class, 'fulfillQueued')");
+};
+$tests['125 notification listener supports the Leconfe 1.5 paymentId contract'] = function () use ($contains): void {
+    $contains('src/Listeners/SuppressPaymentRequiredForFullDiscount.php', "property_exists(\$notification, 'paymentId')");
+    $contains('src/Listeners/SuppressPaymentRequiredForFullDiscount.php', 'Payment::query()->find($paymentId)');
+    $contains('src/Listeners/SuppressPaymentRequiredForFullDiscount.php', "property_exists(\$notification, 'participant')");
+    $contains('src/Listeners/SuppressPaymentRequiredForFullDiscount.php', "property_exists(\$notification, 'submission')");
+};
+$tests['126 Leconfe 1.5 plugin test discovery can invoke this suite'] = function () use ($assert, $source): void {
+    $composer = json_decode($source('composer.json'), true, 512, JSON_THROW_ON_ERROR);
+    $assert(($composer['scripts']['test'] ?? null) === '@php tests/run.php');
+};
+$tests['127 current plugin release declares Leconfe 1.5 compatibility'] = function () use ($contains): void {
+    $contains('index.yaml', 'version: "1.4.0"');
+    $contains('README.md', 'Leconfe 1.5.0');
+    $contains('UPGRADE-1.4.0.md', 'paymentId');
 };
 
 $results = [];

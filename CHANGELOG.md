@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.4.0 - 2026-09-02 - Leconfe 1.5 Compatibility
+
+- Added explicit compatibility with Leconfe 1.5.0 while preserving Leconfe 1.4.6 support.
+- Adapted suppression of completed full-discount payment notifications to Leconfe 1.5's new public `paymentId` notification contract.
+- Retained the legacy participant/submission relation path used by Leconfe 1.4.6, with no stored-data conversion.
+- Added a compatibility guard for the native `PaymentManager::fulfillQueued()` signature used by zero-value completion.
+- Added the standard Composer `test` script used by Leconfe 1.5 plugin test discovery.
+- Verified the plugin lifecycle, hook, payment, metadata, role, and framework boundaries against both official Leconfe source tags.
+- Added isolated runtime simulations for both notification shapes and both supported Leconfe versions.
+- No schema migration is required; existing discounts, reasons, coupons, encrypted codes, redemptions, snapshots, reports, and audit records are preserved.
+
 ## 1.3.2 - 2026-09-02 - Free-text Reasons and Form Stability
 
 - Replaced the predefined Reason dropdown, hidden composed value, and reactive callbacks with one required free-text field.
