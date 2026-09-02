@@ -24,7 +24,6 @@ use ConferenceDiscountEligibility\Support\Money;
 use ConferenceDiscountEligibility\Support\PaypalAmountContract;
 use ConferenceDiscountEligibility\Support\Percentage;
 use ConferenceDiscountEligibility\Support\RuleValidity;
-use ConferenceDiscountEligibility\Support\ReasonOptions;
 
 $root = dirname(__DIR__);
 $tests = [];
@@ -389,7 +388,7 @@ $tests['67 all locales describe participant and submission recalculation'] = fun
     $contains('lang/pt-BR/messages.php', 'participante e de submissão');
 };
 $tests['68 current version retains coupons on payment pages'] = function () use ($contains): void {
-    $contains('index.yaml', 'version: "1.3.1"');
+    $contains('index.yaml', 'version: "1.3.2"');
     $contains('CHANGELOG.md', 'Coupon Campaigns and Payment-Page Redemption');
     $contains('ARCHITECTURE.md', 'PaymentManager::getPaymentMethodInfolist');
 };
@@ -570,7 +569,7 @@ $tests['99 migration and installer require every coupon structure'] = function (
     $contains('src/Services/SchemaInstaller.php', "hasColumn('conference_discount_payment_snapshots', 'coupon_campaign_id')");
 };
 $tests['100 current plugin includes coupon campaign administration and payment-page redemption'] = function () use ($contains): void {
-    $contains('index.yaml', 'version: "1.3.1"');
+    $contains('index.yaml', 'version: "1.3.2"');
     $contains('src/ConferenceDiscountEligibilityPlugin.php', 'CouponCampaignResource::class');
     $contains('src/ConferenceDiscountEligibilityPlugin.php', "Livewire::component('conference-discount-coupon-redemption'");
     $contains('UPGRADE-1.2.1.md', '100%');
@@ -645,7 +644,7 @@ $tests['113 payment page explains that no gateway is required'] = function () us
     }
 };
 $tests['114 current version retains automatic completion for zero totals'] = function () use ($contains): void {
-    $contains('index.yaml', 'version: "1.3.1"');
+    $contains('index.yaml', 'version: "1.3.2"');
     $contains('CHANGELOG.md', 'Automatic Completion for 100% Discounts');
     $contains('UPGRADE-1.2.1.md', 'full_discount');
 };
@@ -656,28 +655,28 @@ $tests['115 plugin enabled state is sitewide across Leconfe panel contexts'] = f
     $contains('src/ConferenceDiscountEligibilityPlugin.php', "getSetting('enabled', true)");
     $contains('src/ConferenceDiscountEligibilityPlugin.php', 'getPluginPage');
 };
-$tests['116 generic reason choices replace organization-specific presets'] = function () use ($contains, $notContains): void {
-    foreach (['Active member', 'Institutional partner', 'Country-based waiver', 'Research support program', 'Financial hardship', 'Promotional campaign', 'Editorial decision', 'Individual approval'] as $reason) {
-        $contains('src/Support/ReasonOptions.php', $reason);
-    }
-    $notContains('src/Panel/ScheduledConference/Resources/IndividualEntitlementResource.php', 'CLAEC active member');
+$tests['116 reason is a single administrator-defined text field'] = function () use ($contains, $notContains): void {
+    $contains('src/Support/ReasonForm.php', "TextInput::make('reason')");
+    $contains('src/Support/ReasonForm.php', '->required()');
+    $contains('src/Support/ReasonForm.php', '->maxLength(255)');
+    $notContains('src/Support/ReasonForm.php', "Select::make('reason_code')");
 };
-$tests['117 other reason requires administrator text and all reasons accept details'] = function () use ($contains): void {
-    $contains('src/Support/ReasonForm.php', "ReasonOptions::OTHER");
-    $contains('src/Support/ReasonForm.php', '->required(static fn (Get $get)');
-    $contains('src/Support/ReasonForm.php', "reason_details");
+$tests['117 reason form has no reactive or hidden state'] = function () use ($notContains): void {
+    $notContains('src/Support/ReasonForm.php', 'Hidden::make');
+    $notContains('src/Support/ReasonForm.php', 'afterStateHydrated');
+    $notContains('src/Support/ReasonForm.php', 'afterStateUpdated');
+    $notContains('src/Support/ReasonForm.php', 'dehydrated(false)');
 };
-$tests['118 legacy reasons map without dropping their original text'] = function () use ($assertSame, $assert): void {
-    $parsed = ReasonOptions::parse('CLAEC active member');
-    $assertSame(ReasonOptions::ACTIVE_MEMBER, $parsed['code']);
-    $assertSame('CLAEC active member', $parsed['details']);
-    $assert(str_contains(ReasonOptions::compose($parsed['code'], $parsed['custom'], $parsed['details']), 'CLAEC active member'));
+$tests['118 existing reasons are edited through the original database attribute'] = function () use ($contains, $notContains): void {
+    $contains('src/Support/ReasonForm.php', "TextInput::make('reason')");
+    $notContains('src/Support/ReasonForm.php', 'ReasonOptions');
+    $notContains('src/Support/ReasonForm.php', "make('custom_reason')");
 };
-$tests['119 every shipped locale contains the new reason fields'] = function () use ($contains): void {
+$tests['119 every shipped locale explains the free-text reason'] = function () use ($contains, $notContains): void {
     foreach (['lang/en/messages.php', 'lang/es/messages.php', 'lang/pt-BR/messages.php', 'lang/pt/messages.php', 'lang/pt_BR/messages.php'] as $path) {
-        $contains($path, "'reason_active_member'");
-        $contains($path, "'custom_reason'");
-        $contains($path, "'reason_details'");
+        $contains($path, "'reason_help'");
+        $notContains($path, "'reason_active_member'");
+        $notContains($path, "'custom_reason'");
     }
 };
 $tests['120 schema installer upgrades coupons for encrypted recovery'] = function () use ($contains): void {
@@ -697,15 +696,13 @@ $tests['122 coupon reveal controls are translated in every locale'] = function (
         $contains($path, "'coupon_code_decryption_failed'");
     }
 };
-$tests['123 reason hidden field uses methods supported by Filament 3.3.52'] = function () use ($assert, $source): void {
+$tests['123 reason text field uses only methods supported by Filament 3.3.52'] = function () use ($assert, $source): void {
     $reasonForm = $source('src/Support/ReasonForm.php');
-    $hiddenStart = strpos($reasonForm, "Forms\\Components\\Hidden::make('reason')");
-    $selectStart = strpos($reasonForm, "Forms\\Components\\Select::make('reason_code')");
-
-    $assert($hiddenStart !== false && $selectStart !== false && $selectStart > $hiddenStart);
-    $hiddenField = substr($reasonForm, $hiddenStart, $selectStart - $hiddenStart);
-    $assert(str_contains($hiddenField, '->required()'));
-    $assert(! str_contains($hiddenField, '->maxLength('), 'Filament 3.3.52 Hidden does not support maxLength().');
+    $assert(str_contains($reasonForm, "Forms\\Components\\TextInput::make('reason')"));
+    $assert(str_contains($reasonForm, '->required()'));
+    $assert(str_contains($reasonForm, '->maxLength(255)'));
+    $assert(! str_contains($reasonForm, 'Hidden::make'));
+    $assert(! str_contains($reasonForm, 'Select::make'));
 };
 
 $results = [];

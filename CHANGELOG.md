@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.2 - 2026-09-02 - Free-text Reasons and Form Stability
+
+- Replaced the predefined Reason dropdown, hidden composed value, and reactive callbacks with one required free-text field.
+- Preserved every existing reason exactly as stored; no migration or data rewrite is required.
+- Applied the simplified field to individual, email, institutional-domain, and coupon-campaign create/edit forms.
+- Removed unused organization-specific reason mappings and preset translations.
+- Added regression coverage that forbids hidden, select, hydration, update, and non-dehydrated state logic in the shared Reason form.
+
 ## 1.3.1 - 2026-08-04 - Secure Coupon Code Reveal
 
 - Added a **Reveal code** action to Coupon Campaigns for authorized administrators.

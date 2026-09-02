@@ -1,4 +1,4 @@
-# ARCHITECTURE - Conference Discount Eligibility 1.3.1
+# ARCHITECTURE - Conference Discount Eligibility 1.3.2
 
 ## Architectural goals
 
@@ -262,7 +262,7 @@ Disabling the plugin leaves schema and data intact. A production downgrade shoul
 
 Leconfe 1.4.6 discovers a plugin only when the extracted root folder contains both `index.yaml` and `index.php`. Its enabled setting is normally scoped to the current panel context, and `PluginManager::initialize()` checks that setting directly with a `false` default before booting. Version 1.3.0 declares `sitewide: true` and initializes a missing sitewide `enabled` setting during `load()`, before the manager performs that boot decision. Upload/enable state is therefore shared across every panel context and the plugin boots in the same discovery cycle. An explicitly stored `false` value is never overwritten. `onPanel()` still registers resources only for `scheduledConference`.
 
-Reasons continue to use the existing 255-character `reason` column, so no migration or snapshot rewrite is necessary. The form stores a canonical generic label plus optional details. Legacy CLAEC/Research4Life values are parsed into a generic category while retaining the exact original value as details; unknown values become custom **Other** reasons.
+Reasons continue to use the existing 255-character `reason` column, so no migration or snapshot rewrite is necessary. All create/edit screens use one required native Filament text field bound directly to `reason`. Existing values are displayed and saved unchanged, with no preset mapping, hidden state, or reactive composition.
 
 ## Compatibility boundary
 
