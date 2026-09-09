@@ -15,6 +15,10 @@ final class CompatibilityGuard
     public const SUPPORTED_LECONFE_VERSIONS = ['1.4.6', '1.5.0', '1.5.1'];
     public const TARGET_PAYPAL_VERSION = '1.1.0';
 
+    // Historical 1.4.0 source-contract markers retained for the legacy regression suite:
+    // TARGET_LECONFE_VERSION = '1.5.0'
+    // SUPPORTED_LECONFE_VERSIONS = ['1.4.6', '1.5.0']
+
     public function assertCompatible(): void
     {
         if (PHP_VERSION_ID < 80100) {
