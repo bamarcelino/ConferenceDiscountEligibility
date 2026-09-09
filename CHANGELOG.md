@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.1 - 2026-09-09 - Leconfe 1.5.1 Compatibility
+
+- Added explicit compatibility with Leconfe 1.5.1 while preserving support for Leconfe 1.5.0 and 1.4.6.
+- Fixed HTTP 500 responses on Scheduled Conference frontend and backend after upgrading Leconfe from 1.5.0 to 1.5.1.
+- Root cause: the 1.4.0 compatibility guard rejected Leconfe 1.5.1 before plugin boot completed.
+- Verified the official Leconfe 1.5.0...1.5.1 diff; the native `PaymentManager::queue()` and `PaymentManager::fulfillQueued()` contracts used by this plugin are unchanged.
+- Retained the runtime signature guards for both native payment methods.
+- No schema migration or stored-data rewrite is required.
+- Existing discounts, free-text reasons, coupon campaigns, encrypted codes, redemptions, snapshots, invoices, receipts, reports, and audit logs are preserved.
+
 ## 1.4.0 - 2026-09-02 - Leconfe 1.5 Compatibility
 
 - Added explicit compatibility with Leconfe 1.5.0 while preserving Leconfe 1.4.6 support.
@@ -90,7 +100,7 @@
 ## 1.0.2 — 2026-07-17
 
 - Added per-domain identity verification policies.
-- Preserved verified-email-only as the secure default for all existing rules.
+- Preserved verified-email-only as the secure domain default for all existing rules.
 - Added an explicit confirmed-author fallback for the same scheduled conference.
 - Accepted only concrete submission ownership or participant/Author linkage; self-assigned Author role and author-email metadata alone are not proof.
 - Added schema version 2 and an idempotent `identity_policy` column.
