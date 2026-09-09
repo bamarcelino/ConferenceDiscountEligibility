@@ -52,7 +52,7 @@ Version 1.4.1 adds explicit compatibility with Leconfe 1.5.1 while preserving Le
 
 Version 1.4.1 was reviewed against the official Leconfe 1.5.1 source tag and the 1.5.0...1.5.1 core diff. The release does not change the discount, coupon, settlement, PayPal, or persistence logic; it extends the compatibility guard to accept 1.5.1 after confirming that the native `PaymentManager::queue()` and `PaymentManager::fulfillQueued()` APIs used by the plugin were unchanged in the patch release.
 
-Authenticated end-to-end verification on a real Leconfe 1.5.1 installation is still recommended before production deployment.
+Authenticated end-to-end verification on a real Leconfe 1.5.1 installation is still recommended before production deployment. See `VALIDATION_REPORT-1.4.1.md` for the compatibility review and remaining target checks.
 
 ## Documentation
 
@@ -62,7 +62,8 @@ Authenticated end-to-end verification on a real Leconfe 1.5.1 installation is st
 - `CONFIGURATION.md`
 - `SECURITY.md`
 - `UPGRADE-1.4.1.md`
-- `VALIDATION_REPORT.md`
+- `VALIDATION_REPORT-1.4.1.md`
+- `VALIDATION_REPORT.md` (historical 1.4.0 validation)
 - `CHANGELOG.md`
 
 ## Author
