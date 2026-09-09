@@ -1,6 +1,6 @@
 # Conference Discount Eligibility
 
-`Conference Discount Eligibility` is a scheduled-conference-scoped plugin for **Leconfe 1.4.6 and 1.5.0**. It applies server-side automatic eligibility discounts and secure payment-page coupons to both native Leconfe fee types: Participant Payment and Submission Payment. The official **Paypal Payment 1.1.0** plugin remains the only PayPal gateway and remains responsible for every positive-value checkout, return/cancellation processing, and PayPal transaction metadata. When a valid discount reduces the complete native Payment total to zero, the plugin completes that Payment through Leconfe's native `fulfillQueued()` method with `payment_method = full_discount`, without opening PayPal.
+`Conference Discount Eligibility` is a scheduled-conference-scoped plugin for **Leconfe 1.4.6, 1.5.0 and 1.5.1**. It applies server-side automatic eligibility discounts and secure payment-page coupons to both native Leconfe fee types: Participant Payment and Submission Payment. The official **Paypal Payment 1.1.0** plugin remains the only PayPal gateway and remains responsible for every positive-value checkout, return/cancellation processing, and PayPal transaction metadata. When a valid discount reduces the complete native Payment total to zero, the plugin completes that Payment through Leconfe's native `fulfillQueued()` method with `payment_method = full_discount`, without opening PayPal.
 
 ## Included capabilities
 
@@ -42,17 +42,17 @@ Rotating the Laravel `APP_KEY` invalidates existing coupon hashes. Export or rep
 
 ## Package choice
 
-Use `ConferenceDiscountEligibility-1.4.0.zip` in Leconfe's **Upload Plugin** action. Leconfe accepts ZIP packages only.
+Use `ConferenceDiscountEligibility-1.4.1.zip` in Leconfe's **Upload Plugin** action. Leconfe accepts ZIP packages only.
 
 ## Upgrade behavior
 
-Version 1.4.0 adds Leconfe 1.5.0 compatibility while preserving Leconfe 1.4.6 support. It adapts payment-required notification handling to the new `paymentId` notification contract and exposes the standard Composer `test` script used by Leconfe 1.5's plugin test discovery. No schema or stored data changes are required. See `UPGRADE-1.4.0.md`.
+Version 1.4.1 adds explicit compatibility with Leconfe 1.5.1 while preserving Leconfe 1.5.0 and 1.4.6 support. Leconfe 1.5.1 does not change the PaymentManager contracts used by the plugin; the previous HTTP 500 was caused by the plugin's strict version allow-list rejecting 1.5.1 during boot. No schema or stored data changes are required. See `UPGRADE-1.4.1.md`.
 
 ## Validation status
 
-The automatic discount path has already been exercised successfully in a Leconfe 1.4.6 installation, including participant and submission amounts, Payment Detail, Audit Log, and invoice output. Version 1.4.0 has been checked against the official Leconfe 1.4.6 and 1.5.0 source tags and subjected to the isolated tests, signature checks, discovery and notification runtime simulations, syntax lint, secret scan, and archive extraction checks recorded in `VALIDATION_REPORT.md`.
+Version 1.4.1 was reviewed against the official Leconfe 1.5.1 source tag and the 1.5.0...1.5.1 core diff. The release does not change the discount, coupon, settlement, PayPal, or persistence logic; it extends the compatibility guard to accept 1.5.1 after confirming that the native `PaymentManager::queue()` and `PaymentManager::fulfillQueued()` APIs used by the plugin were unchanged in the patch release.
 
-The corrected free-text Reason form still requires end-to-end validation in the authenticated target panel. PayPal Sandbox remains **PENDING EXTERNAL CREDENTIALS**.
+Authenticated end-to-end verification on a real Leconfe 1.5.1 installation is still recommended before production deployment. See `VALIDATION_REPORT-1.4.1.md` for the compatibility review and remaining target checks.
 
 ## Documentation
 
@@ -61,8 +61,9 @@ The corrected free-text Reason form still requires end-to-end validation in the 
 - `INSTALLATION.md`
 - `CONFIGURATION.md`
 - `SECURITY.md`
-- `UPGRADE-1.4.0.md`
-- `VALIDATION_REPORT.md`
+- `UPGRADE-1.4.1.md`
+- `VALIDATION_REPORT-1.4.1.md`
+- `VALIDATION_REPORT.md` (historical 1.4.0 validation)
 - `CHANGELOG.md`
 
 ## Author

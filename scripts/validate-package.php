@@ -22,26 +22,43 @@ if ($code !== 0) {
     exit(1);
 }
 $root = $temp . '/ConferenceDiscountEligibility';
-$required = ['index.php','index.yaml','composer.json','vendor/autoload.php','src/ConferenceDiscountEligibilityPlugin.php','src/Support/ReasonForm.php','database/migrations/2026_08_04_000003_add_encrypted_coupon_code_to_conference_discount_coupons.php','RESEARCH.md','ARCHITECTURE.md','SECURITY.md','UPGRADE-1.4.0.md','sample-discount-import.csv'];
+$required = [
+    'index.php',
+    'index.yaml',
+    'composer.json',
+    'vendor/autoload.php',
+    'src/ConferenceDiscountEligibilityPlugin.php',
+    'src/Support/ReasonForm.php',
+    'database/migrations/2026_08_04_000003_add_encrypted_coupon_code_to_conference_discount_coupons.php',
+    'RESEARCH.md',
+    'ARCHITECTURE.md',
+    'SECURITY.md',
+    'UPGRADE-1.4.0.md',
+    'UPGRADE-1.4.1.md',
+    'sample-discount-import.csv',
+];
 $errors = [];
 $entries = array_values(array_diff(scandir($temp) ?: [], ['.','..']));
 if ($entries !== ['ConferenceDiscountEligibility']) {
     $errors[] = 'Archive must contain exactly one ConferenceDiscountEligibility root folder.';
 }
 foreach ($required as $file) {
-    if (! is_file($root . '/' . $file)) { $errors[] = 'Missing ' . $file; }
+    if (! is_file($root . '/' . $file)) {
+        $errors[] = 'Missing ' . $file;
+    }
 }
 if (is_dir($root . '/ConferenceDiscountEligibility')) {
     $errors[] = 'Duplicate nested root folder detected.';
 }
-if (! str_contains((string) file_get_contents($root . '/index.yaml'), 'version: "1.4.0"')) {
-    $errors[] = 'Manifest version is not 1.4.0.';
+$manifest = (string) file_get_contents($root . '/index.yaml');
+if (! preg_match('/^version:\s*"1\.4\.1"\s*$/m', $manifest)) {
+    $errors[] = 'Manifest version is not 1.4.1.';
 }
-if (! str_contains((string) file_get_contents($root . '/index.yaml'), 'sitewide: true')) {
+if (! str_contains($manifest, 'sitewide: true')) {
     $errors[] = 'Manifest must use sitewide discovery and enablement on supported Leconfe releases.';
 }
 if ($errors !== []) {
     fwrite(STDERR, implode("\n", $errors) . "\n");
     exit(1);
 }
-echo "Package structure valid: one root folder; index.php and index.yaml are at the expected level.\n";
+echo "Package structure valid for Conference Discount Eligibility 1.4.1: one root folder; index.php and index.yaml are at the expected level.\n";

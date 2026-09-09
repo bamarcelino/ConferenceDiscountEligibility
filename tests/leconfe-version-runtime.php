@@ -68,7 +68,7 @@ namespace {
     use ConferenceDiscountEligibility\Tests\RuntimeVersion;
 
     $guard = new CompatibilityGuard();
-    foreach (['1.4.6', '1.5.0'] as $supported) {
+    foreach (['1.4.6', '1.5.0', '1.5.1'] as $supported) {
         RuntimeVersion::$value = $supported;
         $guard->assertCompatible();
     }
@@ -79,11 +79,11 @@ namespace {
         fwrite(STDERR, "An unsupported Leconfe version was accepted.\n");
         exit(1);
     } catch (RuntimeException $exception) {
-        if (! str_contains($exception->getMessage(), '1.4.6 and 1.5.0')) {
+        if (! str_contains($exception->getMessage(), '1.5.1')) {
             fwrite(STDERR, "The unsupported-version error does not name the supported versions.\n");
             exit(1);
         }
     }
 
-    echo "Leconfe version and PaymentManager signature guard simulation passed.\n";
+    echo "Leconfe 1.4.6/1.5.0/1.5.1 version and PaymentManager signature guard simulation passed.\n";
 }

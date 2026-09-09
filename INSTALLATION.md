@@ -2,32 +2,30 @@
 
 ## Compatibility
 
-- Leconfe 1.4.6 or 1.5.0
+- Leconfe 1.4.6, 1.5.0 or 1.5.1
 - Paypal Payment 1.1.0
 - PHP compatible with the target Leconfe installation
-- Laravel, Filament, and Livewire versions bundled by either supported Leconfe release
+- Laravel, Filament, and Livewire versions bundled by a supported Leconfe release
 - PHP extensions required by Leconfe, plus JSON and mbstring
 
-## Upgrade from 1.1.0 or earlier
+## Upgrade from 1.4.0
 
 1. Back up the Leconfe database and plugin directory.
-2. Confirm no PayPal checkout is open for a payment that may be changed.
-3. Open **Plugin Management** and disable Conference Discount Eligibility temporarily.
-4. Upload `ConferenceDiscountEligibility-1.4.0.zip` over the existing plugin.
-5. Confirm that the installed-plugins table immediately shows version 1.4.0 as enabled.
-6. Navigate normally to a Scheduled Conference panel; no saved/direct plugin URL is required.
-7. Open **Discount Eligibility - Settings** and review **Allow coupon entry on payment pages**.
+2. Open **Plugin Management** and disable Conference Discount Eligibility temporarily.
+3. Upload `ConferenceDiscountEligibility-1.4.1.zip` over the existing plugin.
+4. Confirm that the installed-plugins table shows version 1.4.1 as enabled.
+5. Navigate normally to a Scheduled Conference panel.
+6. Confirm that frontend and backend scheduled-conference pages load without HTTP 500.
+7. Test one Participant Payment and one Submission Payment before production use.
 
-If Plugin Management still displays an earlier version after upload, reload the page and clear the application/PHP opcode cache or restart the PHP service according to the hosting environment. Test the plugin only after version 1.4.0 is shown.
-
-The enabled plugin runs its idempotent schema installer. Schema version 4 adds a nullable encrypted-code column to coupon campaigns. Existing campaigns, hashes, hints, redemptions, and payment snapshots are preserved.
+Version 1.4.1 has no schema migration. Existing automatic rules, free-text reasons, coupon campaigns, encrypted coupon codes, redemptions, payment snapshots, reports, and audit logs are preserved.
 
 ## First installation
 
 1. Back up the database.
 2. Keep Paypal Payment 1.1.0 installed and configured.
 3. Open **Plugin Management - Upload Plugin**.
-4. Upload `ConferenceDiscountEligibility-1.4.0.zip`.
+4. Upload `ConferenceDiscountEligibility-1.4.1.zip`.
 5. Confirm that it appears immediately as enabled in the installed-plugins table.
 6. Open a Scheduled Conference normally and select **Discount Eligibility - Settings** from its navigation.
 7. Keep **Base fee only** initially.
@@ -35,6 +33,10 @@ The enabled plugin runs its idempotent schema installer. Schema version 4 adds a
 9. Create one unpaid Participant Payment and one unpaid Submission Payment.
 10. Apply the coupon from each payment page and inspect Payment Detail, invoice, Audit Log, and Discount Payment Report.
 11. Complete a PayPal Sandbox transaction before production use.
+
+## Leconfe 1.5.1 compatibility note
+
+Leconfe 1.5.1 changes scheduled-conference path decoding and plugin-view permissions, but it does not modify the native `PaymentManager::queue()` or `PaymentManager::fulfillQueued()` contracts used by Conference Discount Eligibility. Version 1.4.0 rejected 1.5.1 solely because its compatibility guard used an explicit version allow-list, causing the plugin to throw during scheduled-conference boot. Version 1.4.1 adds 1.5.1 to the validated allow-list.
 
 ## ZIP MIME issue in Chrome
 
@@ -62,6 +64,8 @@ Do not upload a `.tar.gz`; Leconfe's official upload mechanism accepts ZIP only.
 
 ## Post-installation checks
 
+- Scheduled Conference frontend loads normally.
+- Scheduled Conference backend loads normally.
 - Coupon Campaigns appears under Discount Eligibility.
 - New or regenerated coupon campaigns provide **Reveal code** in the campaign actions.
 - Legacy campaigns show **Code unavailable** until an unused campaign is regenerated once.
