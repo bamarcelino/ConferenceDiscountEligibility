@@ -1,6 +1,6 @@
 {
     "name": "scientia-international/conference-discount-eligibility",
-    "description": "Automatic eligibility discounts and secure payment-page coupon redemption for Leconfe 1.4.6 and 1.5.0.",
+    "description": "Automatic eligibility discounts and secure payment-page coupon redemption for Leconfe 1.4.6, 1.5.0 and 1.5.1.",
     "type": "leconfe-plugin",
     "license": "proprietary",
     "authors": [
