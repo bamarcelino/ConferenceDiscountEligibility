@@ -1,0 +1,67 @@
+name: Compatibility CI
+
+on:
+  push:
+    branches:
+      - main
+      - fix/leconfe-1.5.1-compatibility
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: json, mbstring
+          coverage: none
+
+      - name: Prepare standalone autoloader
+        run: |
+          mkdir -p vendor tests/results
+          cp scripts/release-autoload.php vendor/autoload.php
+
+      - name: Run standalone regression suite
+        run: php tests/run.php
+
+      - name: Run Leconfe version guard simulation
+        run: php tests/leconfe-version-runtime.php
+
+      - name: Run entrypoint smoke test
+        run: php tests/smoke-entrypoint.php
+
+      - name: Run discovery simulation
+        run: php tests/plugin-discovery-runtime.php
+
+      - name: Run payment manager simulation
+        run: php tests/payment-manager-runtime.php
+
+      - name: Run notification compatibility simulation
+        run: php tests/notification-compatibility-runtime.php
+
+      - name: Lint PHP and Blade sources
+        run: php scripts/lint.php
+
+      - name: Scan for secrets
+        run: php scripts/secret-scan.php
+
+      - name: Build and validate release archive
+        run: bash scripts/build-release.sh
+
+      - name: Upload release candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: ConferenceDiscountEligibility-1.4.1
+          path: |
+            artifacts/ConferenceDiscountEligibility-1.4.1.zip
+            artifacts/ConferenceDiscountEligibility-1.4.1.sha256
