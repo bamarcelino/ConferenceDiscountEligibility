@@ -1,0 +1,1 @@
+Conference Discount Eligibility 1.4.1 is the current release candidate for Leconfe 1.4.6, 1.5.0, and 1.5.1. The package is built and validated by GitHub Actions before publication.
