@@ -1,0 +1,59 @@
+name: Publish Conference Discount Eligibility 1.4.1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/release-1.4.1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Prepare standalone autoloader
+        run: |
+          mkdir -p vendor
+          cp scripts/release-autoload.php vendor/autoload.php
+
+      - name: Run validation suite
+        run: |
+          php tests/run.php
+          php tests/leconfe-version-runtime.php
+          php tests/smoke-entrypoint.php
+          php tests/plugin-discovery-runtime.php
+          php tests/payment-manager-runtime.php
+          php tests/notification-compatibility-runtime.php
+          php scripts/lint.php
+          php scripts/secret-scan.php
+
+      - name: Build release package
+        run: |
+          chmod +x scripts/build-release.sh
+          ./scripts/build-release.sh
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view 1.4.1 >/dev/null 2>&1; then
+            echo 'Release 1.4.1 already exists.'
+            exit 0
+          fi
+          gh release create 1.4.1 \
+            artifacts/ConferenceDiscountEligibility-1.4.1.zip \
+            artifacts/ConferenceDiscountEligibility-1.4.1.sha256 \
+            --target "${GITHUB_SHA}" \
+            --title 'Conference Discount Eligibility 1.4.1' \
+            --notes 'Patch release adding explicit compatibility with Leconfe 1.5.1 while preserving support for Leconfe 1.5.0 and 1.4.6. The strict version allow-list that caused HTTP 500 errors on Leconfe 1.5.1 has been updated after verifying that the PaymentManager contracts used by the plugin remain unchanged. No database migration is required. Existing discounts, free-text reasons, coupon campaigns, encrypted coupon codes, redemptions, payment snapshots, invoices, receipts, reports and audit logs are preserved.'
